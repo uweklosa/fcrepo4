@@ -18,7 +18,6 @@
 package org.fcrepo.integration.http.api;
 
 import static org.apache.commons.lang3.StringUtils.contains;
-import static org.fcrepo.kernel.api.RdfLexicon.REPOSITORY_NAMESPACE;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static javax.ws.rs.core.HttpHeaders.ACCEPT;
@@ -29,12 +28,16 @@ import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.util.EntityUtils;
 import org.junit.Test;
+import org.springframework.test.context.TestExecutionListeners;
 
 /**
  * <p>FedoraHtmlIT class.</p>
  *
  * @author awoods
  */
+@TestExecutionListeners(
+        listeners = { TestIsolationExecutionListener.class },
+        mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
 public class FedoraHtmlIT extends AbstractResourceIT {
 
     @Test
@@ -75,7 +78,6 @@ public class FedoraHtmlIT extends AbstractResourceIT {
     public void testGetContainerTemplate() throws IOException {
         final String pid = getRandomUniqueId();
         createObject(pid);
-        addMixin(pid, REPOSITORY_NAMESPACE + "Container");
 
         final HttpGet method = new HttpGet(serverAddress + pid);
         method.addHeader(ACCEPT, "text/html");
@@ -88,6 +90,7 @@ public class FedoraHtmlIT extends AbstractResourceIT {
     @Test
     public void testGetBinaryTemplate() throws IOException {
         final String pid = getRandomUniqueId();
+        createObject(pid);
         createDatastream(pid, "file", "binary content");
 
         final HttpGet method = new HttpGet(serverAddress + pid + "/file/fcr:metadata");
@@ -105,7 +108,7 @@ public class FedoraHtmlIT extends AbstractResourceIT {
         method.addHeader(ACCEPT, "text/html");
         try (final CloseableHttpResponse response = execute(method)) {
             final String html = EntityUtils.toString(response.getEntity());
-            assertTrue(contains(html, "class=\"fcrepo_root\""));
+            assertTrue(html, contains(html, "class=\"fcrepo_root\""));
         }
     }
 

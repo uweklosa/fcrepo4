@@ -20,17 +20,16 @@ package org.fcrepo.http.commons.exceptionhandlers;
 import static javax.ws.rs.core.Response.Status.NOT_FOUND;
 import static org.junit.Assert.assertEquals;
 
-import javax.jcr.ItemNotFoundException;
 import javax.ws.rs.core.Response;
-
+import org.fcrepo.kernel.api.exception.ItemNotFoundException;
 import org.junit.Before;
 import org.junit.Test;
 
+
 /**
- * <p>ItemNotFoundExceptionMapperTest class.</p>
+ * ItemNotFoundExceptionMapperTest class.
  *
- * @author lsitu
- * @author awoods
+ * @author pwinckles
  */
 public class ItemNotFoundExceptionMapperTest {
 
@@ -43,8 +42,9 @@ public class ItemNotFoundExceptionMapperTest {
 
     @Test
     public void testToResponse() {
-        final ItemNotFoundException input = new ItemNotFoundException();
+        final ItemNotFoundException input = new ItemNotFoundException("xyz");
         final Response actual = testObj.toResponse(input);
         assertEquals(NOT_FOUND.getStatusCode(), actual.getStatus());
+        assertEquals(actual.getEntity(), "Error: xyz");
     }
 }

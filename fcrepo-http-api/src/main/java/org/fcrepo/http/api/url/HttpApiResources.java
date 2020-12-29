@@ -19,27 +19,22 @@ package org.fcrepo.http.api.url;
 
 import static org.apache.jena.rdf.model.ModelFactory.createDefaultModel;
 import static org.apache.jena.rdf.model.ResourceFactory.createResource;
-import static java.util.Collections.singletonMap;
-import static org.fcrepo.kernel.api.FedoraTypes.FEDORA_REPOSITORY_ROOT;
 import static org.fcrepo.kernel.api.RdfLexicon.HAS_FIXITY_SERVICE;
 import static org.fcrepo.kernel.api.RdfLexicon.HAS_TRANSACTION_SERVICE;
-import static org.fcrepo.kernel.api.RdfLexicon.HAS_VERSION_HISTORY;
+import static org.fcrepo.kernel.api.RdfLexicon.REPOSITORY_ROOT;
 
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.Resource;
 
-import org.fcrepo.http.api.FedoraVersioning;
-import org.fcrepo.http.api.repository.FedoraRepositoryTransactions;
+import org.fcrepo.http.api.Transactions;
 import org.fcrepo.http.commons.api.rdf.UriAwareResourceModelFactory;
-import org.fcrepo.kernel.api.models.FedoraBinary;
+import org.fcrepo.kernel.api.models.Binary;
 import org.fcrepo.kernel.api.models.FedoraResource;
-import org.fcrepo.kernel.api.identifiers.IdentifierConverter;
+import org.fcrepo.kernel.api.models.NonRdfSourceDescription;
 
 import org.springframework.stereotype.Component;
 
 import javax.ws.rs.core.UriInfo;
-
-import java.util.Map;
 
 /**
  * Inject our HTTP API methods into the object graphs
@@ -51,51 +46,36 @@ public class HttpApiResources implements UriAwareResourceModelFactory {
 
     @Override
     public Model createModelForResource(final FedoraResource resource,
-        final UriInfo uriInfo, final IdentifierConverter<Resource,FedoraResource> idTranslator) {
+        final UriInfo uriInfo) {
 
         final Model model = createDefaultModel();
 
-        final Resource s = idTranslator.reverse().convert(resource);
+        final Resource s = createResource(resource.getFedoraId().getFullId());
 
-        if (resource.hasType(FEDORA_REPOSITORY_ROOT)) {
+        if (resource.hasType(REPOSITORY_ROOT.getURI())) {
             addRepositoryStatements(uriInfo, model, s);
-        } else {
-            addNodeStatements(resource, uriInfo, model, s);
         }
 
-        if (resource.getDescribedResource() instanceof FedoraBinary) {
-            addContentStatements(idTranslator, (FedoraBinary)resource.getDescribedResource(), model);
+        if (resource instanceof NonRdfSourceDescription && !resource.isMemento()) {
+            addContentStatements((Binary)resource.getDescribedResource(), model);
         }
         return model;
     }
 
-    private static void addContentStatements(final IdentifierConverter<Resource,FedoraResource> idTranslator,
-                                             final FedoraBinary resource,
+    private static void addContentStatements(final Binary resource,
                                              final Model model) {
         // fcr:fixity
-        final Resource subject = idTranslator.reverse().convert(resource);
+        final Resource subject = createResource(resource.getFedoraId().getFullId());
         model.add(subject, HAS_FIXITY_SERVICE, createResource(subject.getURI() +
                 "/fcr:fixity"));
     }
 
-    private void addNodeStatements(final FedoraResource resource, final UriInfo uriInfo,
-        final Model model, final Resource s) {
-
-        final Map<String, String> pathMap = singletonMap("path", resource.getPath().substring(1));
-
-        // fcr:versions
-        if (resource.isVersioned()) {
-            model.add(s, HAS_VERSION_HISTORY, createResource(uriInfo
-                    .getBaseUriBuilder().path(FedoraVersioning.class).buildFromMap(
-                            pathMap, false).toASCIIString()));
-        }
-    }
 
     private void addRepositoryStatements(final UriInfo uriInfo, final Model model,
         final Resource s) {
         // fcr:tx
         model.add(s, HAS_TRANSACTION_SERVICE, createResource(uriInfo
-                .getBaseUriBuilder().path(FedoraRepositoryTransactions.class)
+                .getBaseUriBuilder().path(Transactions.class)
                 .build().toASCIIString()));
     }
 

@@ -17,11 +17,12 @@
  */
 package org.fcrepo.auth.common;
 
-import org.fcrepo.kernel.api.exception.RepositoryConfigurationException;
+import javax.servlet.http.HttpServletRequest;
 
-import javax.jcr.Credentials;
 import java.security.Principal;
 import java.util.Set;
+
+import org.fcrepo.kernel.api.exception.RepositoryConfigurationException;
 
 /**
  * An example principal provider that extracts principals from request headers.
@@ -34,6 +35,43 @@ public class DelegateHeaderPrincipalProvider extends HttpHeaderPrincipalProvider
     private static final String SEP = "no-separator";
     protected static final String DELEGATE_HEADER = "On-Behalf-Of";
 
+    public static class DelegatedHeaderPrincipal implements Principal {
+
+        private final String name;
+
+        protected DelegatedHeaderPrincipal(final String name) {
+            this.name = name;
+        }
+
+        @Override
+        public String getName() {
+            return name;
+        }
+
+        @Override
+        public String toString() {
+            return name;
+        }
+
+        @Override
+        public boolean equals(final Object o) {
+            if (o instanceof DelegatedHeaderPrincipal) {
+                return ((DelegatedHeaderPrincipal) o).getName().equals(
+                        this.getName());
+            }
+            return false;
+        }
+
+        @Override
+        public int hashCode() {
+            if (name == null) {
+                return 0;
+            }
+            return name.hashCode();
+        }
+
+    }
+
     /**
      * Default Constructor
      */
@@ -44,12 +82,12 @@ public class DelegateHeaderPrincipalProvider extends HttpHeaderPrincipalProvider
     }
 
     /**
-     * @param credentials from which the principal header is extracted
+     * @param request from which the principal header is extracted
      * @return null if no delegate found, and the delegate if one found
      * @throws RepositoryConfigurationException if more than one delegate found
      */
-    public Principal getDelegate(final Credentials credentials) {
-        final Set<Principal> principals = getPrincipals(credentials);
+    public Principal getDelegate(final HttpServletRequest request) {
+        final Set<Principal> principals = getPrincipals(request);
         // No delegate
         if (principals.size() == 0) {
             return null;
@@ -61,6 +99,11 @@ public class DelegateHeaderPrincipalProvider extends HttpHeaderPrincipalProvider
         }
 
         throw new RepositoryConfigurationException("Too many delegates! " + principals);
+    }
+
+    @Override
+    protected Principal createPrincipal(final String name) {
+        return new DelegatedHeaderPrincipal(name.trim());
     }
 
 }

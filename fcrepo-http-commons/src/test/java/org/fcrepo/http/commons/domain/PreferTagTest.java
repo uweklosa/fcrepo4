@@ -17,13 +17,11 @@
  */
 package org.fcrepo.http.commons.domain;
 
-import static org.fcrepo.kernel.api.RdfLexicon.LDP_NAMESPACE;
+import static org.fcrepo.kernel.api.RdfLexicon.PREFER_MINIMAL_CONTAINER;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
-
-import java.text.ParseException;
 
 import org.junit.Test;
 
@@ -41,13 +39,13 @@ public class PreferTagTest {
     }
 
     @Test
-    public void testTrailingSemicolon() throws ParseException {
+    public void testTrailingSemicolon() {
         final PreferTag preferTag = new PreferTag("foo=bar;");
         assertNotNull(preferTag.getParams());
     }
 
     @Test
-    public void testEquals() throws ParseException {
+    public void testEquals() {
         final PreferTag preferTag1 = new PreferTag("handling=lenient; received=\"minimal\"");
         final PreferTag preferTag2 = new PreferTag("handling=lenient; received=\"minimal\"");
         final PreferTag preferTag3 = PreferTag.emptyTag();
@@ -60,13 +58,13 @@ public class PreferTagTest {
     }
 
     @Test
-    public void testHashCode() throws ParseException {
+    public void testHashCode() {
         doTestHashCode(new PreferTag("handling=lenient; received=\"minimal\""),
                 new PreferTag("handling=lenient; received=\"minimal\""),
                 true);
 
         doTestHashCode(new PreferTag("handling=lenient; received=\"minimal\""),
-                new PreferTag("return=representation; include=\"" + LDP_NAMESPACE + "PreferMinimalContainer\""),
+                new PreferTag("return=representation; include=\"" + PREFER_MINIMAL_CONTAINER + "\""),
                 false);
 
         doTestHashCode(new PreferTag("handling=lenient; received=\"minimal\""),

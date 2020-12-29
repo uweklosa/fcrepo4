@@ -17,6 +17,12 @@
  */
 package org.fcrepo.kernel.api.exception;
 
+import static java.time.ZoneOffset.UTC;
+import static java.time.format.DateTimeFormatter.ISO_INSTANT;
+
+import java.time.format.DateTimeFormatter;
+import java.util.Objects;
+
 import org.fcrepo.kernel.api.models.FedoraResource;
 
 /**
@@ -30,34 +36,28 @@ public class TombstoneException extends RepositoryRuntimeException {
 
     private static final long serialVersionUID = 1L;
 
-    private final FedoraResource fedoraResource;
     private final String uri;
+
+    private static DateTimeFormatter isoFormatter = ISO_INSTANT.withZone(UTC);
 
     /**
      * Construct a new tombstone exception for a resource
-     * @param fedoraResource the fedora resource
+     * @param resource the fedora resource
      */
-    public TombstoneException(final FedoraResource fedoraResource) {
-        this(fedoraResource, null);
+    public TombstoneException(final FedoraResource resource) {
+        this(resource, null);
     }
 
     /**
      * Create a new tombstone exception with a URI to the tombstone resource
-     * @param fedoraResource the fedora resource
-     * @param uri the uri to the tombstone resource
+     * @param resource the fedora resource
+     * @param tombstoneUri the uri to the tombstone resource for the Link header.
      */
-    public TombstoneException(final FedoraResource fedoraResource, final String uri) {
-        super("Discovered tombstone resource at " + fedoraResource);
-        this.fedoraResource = fedoraResource;
-        this.uri = uri;
-    }
-
-    /**
-     * Get the tombstone resource
-     * @return the tombstone resource
-     */
-    public FedoraResource getResource() {
-        return fedoraResource;
+    public TombstoneException(final FedoraResource resource, final String tombstoneUri) {
+        super("Discovered tombstone resource at " + resource.getFedoraId().getFullIdPath() +
+                (Objects.nonNull(resource.getLastModifiedDate()) ? ", departed at: " +
+                isoFormatter.format(resource.getLastModifiedDate()) : ""));
+        this.uri = tombstoneUri;
     }
 
     /**

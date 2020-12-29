@@ -1,11 +1,17 @@
-# Fedora 4
+# PLEASE BE ADVISED
+The `main` branch of Fedora contains the most current state of 6.0.0 development. It is nearing an alpha release and while not considered 
+production ready, it is ready for community testing and feedback.
 
-[![Build Status](https://travis-ci.org/fcrepo4/fcrepo4.png?branch=master)](https://travis-ci.org/fcrepo4/fcrepo4)
+Updated: November 13, 2020
+
+---
+
+![Build](https://github.com/fcrepo/fcrepo/workflows/Build/badge.svg)
 
 [JavaDocs](http://docs.fcrepo.org/) | 
 [Fedora Wiki](https://wiki.duraspace.org/display/FF) | 
 [Use cases](https://wiki.duraspace.org/display/FF/Use+Cases) |
-[REST API](https://wiki.duraspace.org/display/FEDORA4x/RESTful+HTTP+API) |
+[REST API](https://wiki.duraspace.org/display/FEDORA5x/RESTful+HTTP+API) |
 
 Fedora is a robust, modular, open source repository system for the management and dissemination of digital content.
 It is especially suited for digital libraries and archives, both for access and preservation. It is also used to
@@ -23,8 +29,8 @@ The Fedora community is supported by the stewardship of the [DuraSpace](http://w
 ## Downloads
 
 The current web-deployable version of Fedora can be downloaded from the [Duraspace website](https://wiki.duraspace.org/display/FF/Downloads)
-or from [Github](https://github.com/fcrepo4/fcrepo4/releases). These artifacts can be deployed directly in a Jetty or Tomcat container
-as described in the guide to [deploying Fedora](https://wiki.duraspace.org/display/FEDORA4x/Deploying+Fedora+4+Complete+Guide).
+or from [Github](https://github.com/fcrepo/fcrepo/releases). These artifacts can be deployed directly in a Jetty or Tomcat container
+as described in the guide to [deploying Fedora](https://wiki.duraspace.org/display/FEDORA5x/Deploying+Fedora+-+Complete+Guide).
 
 ## Contributing
 
@@ -51,27 +57,35 @@ In addition, there are weekly [technical calls](https://wiki.duraspace.org/displ
 ## Building and running Fedora from source
 
 System Requirements
-* Java 8
-* Maven 3
+* Java 11
+* Maven 3.6.3
 
 ```bash
-$ git clone https://github.com/fcrepo4/fcrepo4.git
-$ cd fcrepo4
+$ git clone https://github.com/fcrepo/fcrepo.git
+$ cd fcrepo
 $ MAVEN_OPTS="-Xmx1024m -XX:MaxMetaspaceSize=1024m" mvn install
 ```
 
 The compiled Fedora war file can be found in `./fcrepo-webapp/target`. This can be deployed directly to a servlet container as
-described in the [deployment guide](https://wiki.duraspace.org/display/FEDORA4x/Deploying+Fedora+4+Complete+Guide).
+described in the [deployment guide](https://wiki.duraspace.org/display/FEDORA5x/Deploying+Fedora+-+Complete+Guide).
+
 
 If deployed locally using a war file called `fcrepo.war`, the web application will typically be available at
 http://localhost:8080/fcrepo/rest.
 
 There are two convenient methods for *testing* the Fedora application by launching it directly from the command line.
 
-One option is to use the "one click" application, which comes with an embedded Jetty servlet. This can be started by
-either double-clicking on the jar file or by running the following command:
+One option is to use the "one click" application, which comes with an embedded Jetty servlet. This can be optionally built by running:
+
+    mvn install -pl fcrepo-webapp -P one-click
+
+and can be started by either double-clicking on the jar file or by running the following command:
 
     java -jar ./fcrepo-webapp/target/fcrepo-webapp-<version>-jetty-console.jar
+
+By default, a Fedora home directory, `fcrepo`, is created in the current directory. You can change the default location by passing in an argument when starting the one-click, e.g.:
+
+    java -Dfcrepo.home=/data/fedora-home -jar fcrepo-webapp-6.0.0-SNAPSHOT-jetty-console.jar
 
 An alternative is use the maven command: `mvn jetty:run`
 
@@ -96,7 +110,7 @@ To set your $JAVA_HOME environment variable:
 export JAVA_HOME=/path/to/java
 ```
 
-If you have problems building fcrepo4 with the above settings, you may need to also pass
+If you have problems building fcrepo with the above settings, you may need to also pass
 options to the JaCoCo code coverage plugin:
 
 ```bash

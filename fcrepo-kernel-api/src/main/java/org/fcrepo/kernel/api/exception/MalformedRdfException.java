@@ -25,7 +25,7 @@ package org.fcrepo.kernel.api.exception;
  * @author whikloj
  * @since Oct 24, 2013
  */
-public class MalformedRdfException extends RepositoryRuntimeException {
+public class MalformedRdfException extends ConstraintViolationException {
 
     private static final long serialVersionUID = 1L;
 
@@ -38,15 +38,6 @@ public class MalformedRdfException extends RepositoryRuntimeException {
         super(msg);
     }
 
-
-    /**
-     * Ordinary constructor.
-     *
-     * @param rootCause the root cause
-     */
-    public MalformedRdfException(final Throwable rootCause) {
-        super(rootCause);
-    }
 
     /**
      * Ordinary constructor.

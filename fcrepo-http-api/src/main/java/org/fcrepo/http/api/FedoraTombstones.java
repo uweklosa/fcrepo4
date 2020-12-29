@@ -18,15 +18,27 @@
 package org.fcrepo.http.api;
 
 import com.google.common.annotations.VisibleForTesting;
+import io.micrometer.core.annotation.Timed;
+import org.fcrepo.kernel.api.exception.PathNotFoundException;
+import org.fcrepo.kernel.api.exception.PathNotFoundRuntimeException;
+import org.fcrepo.kernel.api.identifiers.FedoraId;
 import org.fcrepo.kernel.api.models.FedoraResource;
+import org.fcrepo.kernel.api.models.Tombstone;
+import org.fcrepo.kernel.api.services.PurgeResourceService;
 import org.slf4j.Logger;
 import org.springframework.context.annotation.Scope;
 
+import javax.inject.Inject;
 import javax.ws.rs.DELETE;
+import javax.ws.rs.GET;
+import javax.ws.rs.OPTIONS;
+import javax.ws.rs.POST;
+import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.core.Response;
 
+import static javax.ws.rs.core.HttpHeaders.ALLOW;
 import static javax.ws.rs.core.Response.noContent;
 import static org.slf4j.LoggerFactory.getLogger;
 
@@ -35,13 +47,17 @@ import static org.slf4j.LoggerFactory.getLogger;
  *
  * @author cbeer
  */
+@Timed
 @Scope("request")
 @Path("/{path: .*}/fcr:tombstone")
-public class FedoraTombstones extends FedoraBaseResource {
+public class FedoraTombstones extends ContentExposingResource {
 
     private static final Logger LOGGER = getLogger(FedoraTombstones.class);
 
     @PathParam("path") protected String externalPath;
+
+    @Inject
+    private PurgeResourceService purgeResourceService;
 
     /**
      * Default JAX-RS entry point
@@ -51,7 +67,7 @@ public class FedoraTombstones extends FedoraBaseResource {
     }
 
     /**
-     * Create a new FedoraNodes instance for a given path
+     * Create a new FedoraTombstones instance for a given path
      * @param externalPath the external path
      */
     @VisibleForTesting
@@ -59,20 +75,66 @@ public class FedoraTombstones extends FedoraBaseResource {
         this.externalPath = externalPath;
     }
 
-
     /**
      * Delete a tombstone resource (freeing the original resource to be reused)
      * @return the free resource
      */
     @DELETE
     public Response delete() {
-        LOGGER.info("Delete tombstone: {}", resource());
-        resource().delete();
-        session.commit();
-        return noContent().build();
+        final FedoraResource resource = resource();
+        if (!(resource instanceof Tombstone)) {
+            // If the resource is not deleted there is no tombstone.
+            return Response.status(Response.Status.NOT_FOUND).build();
+        }
+        try {
+            final Tombstone tombstone = (Tombstone) resource;
+            LOGGER.info("Delete tombstone: {}", resource.getFedoraId());
+            purgeResourceService.perform(transaction(), tombstone.getDeletedObject(), getUserPrincipal());
+            transaction().commitIfShortLived();
+            return noContent().build();
+        } finally {
+            transaction().releaseResourceLocksIfShortLived();
+        }
     }
 
+    /*
+     * These methods are disallowed, but need to exist here or the path gets caught by the FedoraLdp path matcher.
+     */
+    @GET
+    public Response get() {
+        return methodNotAllowed();
+    }
+
+    @POST
+    public Response post() {
+        return methodNotAllowed();
+    }
+    @PUT
+    public Response put() {
+        return methodNotAllowed();
+    }
+
+    @OPTIONS
+    public Response options() {
+        return Response.ok().header(ALLOW, "DELETE").build();
+    }
+
+    @Override
     protected FedoraResource resource() {
-        return translator().convert(translator().toDomain(externalPath));
+        final FedoraId resourceId = identifierConverter().pathToInternalId(externalPath);
+        try {
+            return getFedoraResource(transaction(), resourceId);
+        } catch (final PathNotFoundException e) {
+            throw new PathNotFoundRuntimeException(e.getMessage(), e);
+        }
+    }
+
+    @Override
+    protected String externalPath() {
+        return null;
+    }
+
+    private Response methodNotAllowed() {
+        return Response.status(Response.Status.METHOD_NOT_ALLOWED).header(ALLOW, "DELETE").build();
     }
 }

@@ -17,22 +17,20 @@
  */
 package org.fcrepo.http.commons.exceptionhandlers;
 
-import static javax.ws.rs.core.Response.status;
-import static javax.ws.rs.core.Response.Status.NOT_FOUND;
 import static org.slf4j.LoggerFactory.getLogger;
 
-import javax.jcr.PathNotFoundException;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.ext.ExceptionMapper;
 import javax.ws.rs.ext.Provider;
 
+import org.fcrepo.kernel.api.exception.PathNotFoundException;
 import org.slf4j.Logger;
 
+
 /**
- * Translate PathNotFound exceptions into HTTP 404 errors
+ * Catch PathNotFoundException
  *
- * @author awoods
- * @author cbeer
+ * @author robyj
  */
 @Provider
 public class PathNotFoundExceptionMapper implements
@@ -44,7 +42,8 @@ public class PathNotFoundExceptionMapper implements
     @Override
     public Response toResponse(final PathNotFoundException e) {
         debugException(this, e, LOGGER);
-        return status(NOT_FOUND).build();
+        return Response.status(Response.Status.NOT_FOUND).
+                entity("Error: " + e.getMessage()).build();
     }
-
 }
+

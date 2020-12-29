@@ -27,24 +27,27 @@ import static org.fcrepo.http.commons.domain.RDFMediaType.TEXT_HTML_WITH_CHARSET
 import static org.fcrepo.http.commons.domain.RDFMediaType.TEXT_PLAIN_WITH_CHARSET;
 import static org.fcrepo.http.commons.domain.RDFMediaType.TURTLE_WITH_CHARSET;
 import static org.fcrepo.http.commons.domain.RDFMediaType.TURTLE_X;
-import static org.fcrepo.kernel.api.RdfLexicon.LDP_NAMESPACE;
+import static org.fcrepo.kernel.api.RdfLexicon.RDF_SOURCE;
+import static org.fcrepo.kernel.api.RdfLexicon.RESOURCE;
 import static org.slf4j.LoggerFactory.getLogger;
 
+import javax.inject.Inject;
 import javax.ws.rs.GET;
 import javax.ws.rs.NotFoundException;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.Link;
+
 import com.google.common.annotations.VisibleForTesting;
+import io.micrometer.core.annotation.Timed;
 import org.fcrepo.http.commons.responses.HtmlTemplate;
 import org.fcrepo.http.commons.responses.RdfNamespacedStream;
-import org.fcrepo.kernel.api.models.FedoraBinary;
-import org.fcrepo.kernel.api.rdf.DefaultRdfStream;
+import org.fcrepo.kernel.api.RdfStream;
+import org.fcrepo.kernel.api.models.Binary;
+import org.fcrepo.kernel.api.services.FixityService;
 import org.slf4j.Logger;
 import org.springframework.context.annotation.Scope;
-
-import com.codahale.metrics.annotation.Timed;
 
 /**
  * Run a fixity check on a path
@@ -52,6 +55,7 @@ import com.codahale.metrics.annotation.Timed;
  * @author ajs6f
  * @since Jun 12, 2013
  */
+@Timed
 @Scope("request")
 @Path("/{path: .*}/fcr:fixity")
 public class FedoraFixity extends ContentExposingResource {
@@ -60,6 +64,7 @@ public class FedoraFixity extends ContentExposingResource {
 
     @PathParam("path") protected String externalPath;
 
+    @Inject private FixityService fixityService;
 
     /**
      * Default JAX-RS entry point
@@ -85,26 +90,26 @@ public class FedoraFixity extends ContentExposingResource {
      * @return datastream fixity in the given format
      */
     @GET
-    @Timed
     @HtmlTemplate(value = "fcr:fixity")
     @Produces({TURTLE_WITH_CHARSET + ";qs=1.0", JSON_LD + ";qs=0.8", N3_WITH_CHARSET, N3_ALT2_WITH_CHARSET,
             RDF_XML, NTRIPLES, TEXT_PLAIN_WITH_CHARSET, TURTLE_X, TEXT_HTML_WITH_CHARSET, "*/*"})
     public RdfNamespacedStream getDatastreamFixity() {
 
-        if (!(resource() instanceof FedoraBinary)) {
+        if (!(resource() instanceof Binary)) {
             throw new NotFoundException(resource() + " is not a binary");
         }
 
-        final Link.Builder resourceLink = Link.fromUri(LDP_NAMESPACE + "Resource").rel("type");
+        final Link.Builder resourceLink = Link.fromUri(RESOURCE.getURI()).rel("type");
         servletResponse.addHeader(LINK, resourceLink.build().toString());
-        final Link.Builder rdfSourceLink = Link.fromUri(LDP_NAMESPACE + "RDFSource").rel("type");
+        final Link.Builder rdfSourceLink = Link.fromUri(RDF_SOURCE.getURI()).rel("type");
         servletResponse.addHeader(LINK, rdfSourceLink.build().toString());
 
+        final Binary binaryResource = (Binary) resource();
         LOGGER.info("Get fixity for '{}'", externalPath);
-        return new RdfNamespacedStream(
-                new DefaultRdfStream(asNode(resource()),
-                    ((FedoraBinary)resource()).getFixity(translator())),
-                session().getFedoraSession().getNamespaces());
+
+        final RdfStream rdfStream = httpRdfService.bodyToExternalStream(getUri(binaryResource).toString(),
+                fixityService.checkFixity(binaryResource), identifierConverter());
+        return new RdfNamespacedStream(rdfStream, namespaceRegistry.getNamespaces());
     }
 
     @Override

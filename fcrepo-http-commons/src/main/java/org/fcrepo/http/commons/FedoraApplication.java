@@ -17,17 +17,11 @@
  */
 package org.fcrepo.http.commons;
 
-import org.fcrepo.http.commons.session.HttpSession;
-import org.fcrepo.http.commons.session.SessionProvider;
-import org.glassfish.hk2.utilities.binding.AbstractBinder;
+import org.fcrepo.http.commons.metrics.MicrometerFeature;
 import org.glassfish.jersey.jackson.JacksonFeature;
 import org.glassfish.jersey.logging.LoggingFeature;
 import org.glassfish.jersey.media.multipart.MultiPartFeature;
 import org.glassfish.jersey.server.ResourceConfig;
-import org.glassfish.jersey.process.internal.RequestScoped;
-
-import com.codahale.metrics.jersey2.InstrumentedResourceMethodApplicationListener;
-import com.codahale.metrics.MetricRegistry;
 
 import java.util.logging.Logger;
 
@@ -47,24 +41,12 @@ public class FedoraApplication extends ResourceConfig {
     public FedoraApplication() {
         super();
         packages("org.fcrepo");
-        register(new FactoryBinder());
         register(MultiPartFeature.class);
         register(JacksonFeature.class);
+        register(MicrometerFeature.class);
 
         if (LOGGER.isDebugEnabled()) {
             register(new LoggingFeature(Logger.getLogger(LoggingFeature.class.getName())));
-        }
-
-        register(new InstrumentedResourceMethodApplicationListener(new MetricRegistry()));
-    }
-
-    static class FactoryBinder extends AbstractBinder {
-
-        @Override
-        protected void configure() {
-            bindFactory(SessionProvider.class)
-                    .to(HttpSession.class)
-                    .in(RequestScoped.class);
         }
     }
 }

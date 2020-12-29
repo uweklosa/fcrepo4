@@ -20,16 +20,18 @@ package org.fcrepo.http.commons.exceptionhandlers;
 import static javax.ws.rs.core.Response.Status.NOT_FOUND;
 import static org.junit.Assert.assertEquals;
 
-import javax.jcr.PathNotFoundException;
 import javax.ws.rs.core.Response;
+
+import org.fcrepo.kernel.api.exception.PathNotFoundException;
 
 import org.junit.Before;
 import org.junit.Test;
 
+
 /**
- * <p>PathNotFoundExceptionMapperTest class.</p>
+ * PathNotFoundExceptionMapperTest class.
  *
- * @author awoods
+ * @author robyj
  */
 public class PathNotFoundExceptionMapperTest {
 
@@ -42,8 +44,9 @@ public class PathNotFoundExceptionMapperTest {
 
     @Test
     public void testToResponse() {
-        final PathNotFoundException input = new PathNotFoundException();
+        final PathNotFoundException input = new PathNotFoundException("xyz");
         final Response actual = testObj.toResponse(input);
         assertEquals(NOT_FOUND.getStatusCode(), actual.getStatus());
+        assertEquals(actual.getEntity(), "Error: xyz");
     }
 }

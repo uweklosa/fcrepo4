@@ -17,19 +17,14 @@
  */
 package org.fcrepo.auth.integration;
 
-import org.apache.jena.rdf.model.Resource;
 import org.fcrepo.http.commons.AbstractResource;
-import org.fcrepo.http.commons.api.rdf.HttpResourceConverter;
-import org.fcrepo.http.commons.session.HttpSession;
-import org.fcrepo.kernel.api.models.FedoraResource;
-import org.fcrepo.kernel.api.identifiers.IdentifierConverter;
-import org.modeshape.jcr.api.JcrTools;
+import org.fcrepo.http.commons.api.rdf.HttpIdentifierConverter;
+import org.fcrepo.kernel.api.exception.RepositoryException;
+import org.fcrepo.kernel.api.identifiers.FedoraId;
 import org.slf4j.Logger;
 import org.springframework.context.annotation.Scope;
 
-import javax.inject.Inject;
-import javax.jcr.Node;
-import javax.jcr.RepositoryException;
+import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
@@ -37,7 +32,6 @@ import javax.ws.rs.PathParam;
 import javax.ws.rs.core.Response;
 import java.net.URI;
 
-import static org.fcrepo.kernel.modeshape.FedoraSessionImpl.getJcrSession;
 import static org.slf4j.LoggerFactory.getLogger;
 
 /**
@@ -53,35 +47,36 @@ import static org.slf4j.LoggerFactory.getLogger;
 @Path("/{path: .*}")
 public class RootTestResource extends AbstractResource {
 
-    @Inject
-    protected HttpSession session;
-
     private static final Logger LOGGER = getLogger(RootTestResource.class);
+
+    @GET
+    public Response get(@PathParam("path") final String externalPath) {
+        final FedoraId id = identifierConverter().pathToInternalId(externalPath);
+        LOGGER.trace("GET: {}", id.getFullIdPath());
+        return Response.ok().build();
+    }
 
     @PUT
     public Response put(@PathParam("path") final String externalPath) throws Exception {
-        final String path = toPath(translator(), externalPath);
-        LOGGER.trace("PUT: {}", path);
-        return doRequest(path);
+        final FedoraId id = identifierConverter().pathToInternalId(externalPath);
+        LOGGER.trace("PUT: {}", id.getFullIdPath());
+        return doRequest(id);
     }
 
     @POST
     public Response post(@PathParam("path") final String externalPath) throws Exception {
-        final String path = toPath(translator(), externalPath);
-        LOGGER.trace("POST: {}", path);
-        return doRequest(path);
+        final FedoraId id = identifierConverter().pathToInternalId(externalPath);
+        LOGGER.trace("POST: {}", id.getFullIdPath());
+        return doRequest(id);
     }
 
-    private Response doRequest(final String path) throws RepositoryException {
-        final JcrTools jcrTools = new JcrTools();
-        final Node node = jcrTools.findOrCreateNode(getJcrSession(session.getFedoraSession()), path);
-        final URI location = uriInfo.getBaseUriBuilder().path(node.getPath()).build();
+    private Response doRequest(final FedoraId id) throws RepositoryException {
+        final URI location = URI.create(identifierConverter().toExternalId(id.getFullId()));
         return Response.created(location).build();
     }
 
-    protected IdentifierConverter<Resource,FedoraResource> translator() {
-        return new HttpResourceConverter(session,
-                    uriInfo.getBaseUriBuilder().clone().path(RootTestResource.class));
+    private HttpIdentifierConverter identifierConverter() {
+        return new HttpIdentifierConverter(uriInfo.getBaseUriBuilder().clone().path(RootTestResource.class));
     }
 
 }

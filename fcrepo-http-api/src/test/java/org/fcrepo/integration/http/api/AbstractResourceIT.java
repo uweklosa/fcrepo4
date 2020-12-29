@@ -17,42 +17,11 @@
  */
 package org.fcrepo.integration.http.api;
 
-import static java.lang.Integer.MAX_VALUE;
-import static java.lang.Integer.parseInt;
-import static java.util.Arrays.stream;
-import static java.util.UUID.randomUUID;
-import static java.util.stream.Collectors.toList;
-import static javax.ws.rs.core.HttpHeaders.ACCEPT;
-import static javax.ws.rs.core.HttpHeaders.CONTENT_TYPE;
-import static javax.ws.rs.core.HttpHeaders.LINK;
-import static javax.ws.rs.core.MediaType.TEXT_PLAIN;
-import static javax.ws.rs.core.Response.Status.CREATED;
-import static javax.ws.rs.core.Response.Status.GONE;
-import static javax.ws.rs.core.Response.Status.NO_CONTENT;
-import static javax.ws.rs.core.Response.Status.OK;
-import static org.fcrepo.http.commons.test.util.TestHelpers.parseTriples;
-import static org.fcrepo.kernel.api.FedoraTypes.FCR_METADATA;
-import static org.fcrepo.kernel.api.RdfLexicon.CREATED_BY;
-import static org.fcrepo.kernel.api.RdfLexicon.CREATED_DATE;
-import static org.fcrepo.kernel.api.RdfLexicon.LAST_MODIFIED_BY;
-import static org.fcrepo.kernel.api.RdfLexicon.LAST_MODIFIED_DATE;
-import static org.fcrepo.kernel.api.RdfLexicon.NON_RDF_SOURCE;
-import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
-import static org.slf4j.LoggerFactory.getLogger;
-
-import java.io.IOException;
-import java.io.UnsupportedEncodingException;
-import java.util.Calendar;
-import java.util.Collection;
-
-import javax.ws.rs.core.Response.Status;
-import javax.xml.bind.DatatypeConverter;
-
+import com.google.common.base.Strings;
 import org.apache.http.Header;
 import org.apache.http.HttpHost;
 import org.apache.http.HttpResponse;
+import org.apache.http.NoHttpResponseException;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.AuthCache;
@@ -64,6 +33,7 @@ import org.apache.http.client.methods.HttpHead;
 import org.apache.http.client.methods.HttpPatch;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.methods.HttpPut;
+import org.apache.http.client.methods.HttpRequestBase;
 import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.client.protocol.HttpClientContext;
 import org.apache.http.entity.StringEntity;
@@ -74,12 +44,72 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.util.EntityUtils;
+import org.apache.jena.rdf.model.Model;
+import org.apache.jena.riot.RDFDataMgr;
+import org.apache.jena.riot.RDFFormat;
+import org.fcrepo.config.FedoraPropsConfig;
 import org.fcrepo.http.commons.test.util.CloseableDataset;
+import org.fcrepo.http.commons.test.util.ContainerWrapper;
 import org.junit.Before;
 import org.junit.runner.RunWith;
 import org.slf4j.Logger;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
+
+import javax.inject.Inject;
+import javax.ws.rs.core.HttpHeaders;
+import javax.ws.rs.core.Link;
+import javax.ws.rs.core.Response.Status;
+import javax.xml.bind.DatatypeConverter;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.UnsupportedEncodingException;
+import java.net.URI;
+import java.util.Arrays;
+import java.util.Calendar;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+
+import static java.lang.Integer.MAX_VALUE;
+import static java.lang.Integer.parseInt;
+import static java.util.Arrays.stream;
+import static java.util.UUID.randomUUID;
+import static java.util.stream.Collectors.toList;
+import static javax.ws.rs.core.HttpHeaders.ACCEPT;
+import static javax.ws.rs.core.HttpHeaders.CONTENT_LOCATION;
+import static javax.ws.rs.core.HttpHeaders.CONTENT_TYPE;
+import static javax.ws.rs.core.HttpHeaders.LINK;
+import static javax.ws.rs.core.MediaType.TEXT_PLAIN;
+import static javax.ws.rs.core.Response.Status.CREATED;
+import static javax.ws.rs.core.Response.Status.GONE;
+import static javax.ws.rs.core.Response.Status.NOT_FOUND;
+import static javax.ws.rs.core.Response.Status.NO_CONTENT;
+import static javax.ws.rs.core.Response.Status.OK;
+import static org.apache.commons.lang3.StringUtils.isNotEmpty;
+import static org.apache.jena.rdf.model.ModelFactory.createDefaultModel;
+import static org.fcrepo.http.commons.session.TransactionConstants.ATOMIC_ID_HEADER;
+import static org.fcrepo.http.commons.test.util.TestHelpers.parseTriples;
+import static org.fcrepo.kernel.api.FedoraTypes.FCR_METADATA;
+import static org.fcrepo.kernel.api.RdfLexicon.BASIC_CONTAINER;
+import static org.fcrepo.kernel.api.RdfLexicon.CONSTRAINED_BY;
+import static org.fcrepo.kernel.api.RdfLexicon.CREATED_BY;
+import static org.fcrepo.kernel.api.RdfLexicon.CREATED_DATE;
+import static org.fcrepo.kernel.api.RdfLexicon.EXTERNAL_CONTENT;
+import static org.fcrepo.kernel.api.RdfLexicon.LAST_MODIFIED_BY;
+import static org.fcrepo.kernel.api.RdfLexicon.LAST_MODIFIED_DATE;
+import static org.fcrepo.kernel.api.RdfLexicon.NON_RDF_SOURCE;
+import static org.fcrepo.kernel.api.RdfLexicon.PREFER_SERVER_MANAGED;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.slf4j.LoggerFactory.getLogger;
 
 /**
  * <p>Abstract AbstractResourceIT class.</p>
@@ -92,25 +122,64 @@ import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 public abstract class AbstractResourceIT {
 
     protected static Logger logger;
-    private static final String NON_RDF_SOURCE_LINK_HEADER = "<" + NON_RDF_SOURCE.getURI() + ">;rel=\"type\"";
+
+    protected static final String NON_RDF_SOURCE_LINK_HEADER = "<" + NON_RDF_SOURCE.getURI() + ">;rel=\"type\"";
+    protected static final String BASIC_CONTAINER_LINK_HEADER = "<" + BASIC_CONTAINER.getURI() + ">;rel=\"type\"";
+
+    private static final String OMIT_SERVER_PREFER_HEADER = "return=representation; omit=\"" + PREFER_SERVER_MANAGED +
+            "\"";
+
+    @Inject
+    private ContainerWrapper containerWrapper;
+
+    @Inject
+    private static FedoraPropsConfig propsConfig;
+
+    /**
+     * Decode the Digest header
+     * @param digestHeader the digest header value.
+     * @return Map with keys of algorithms and values of hashes.
+     */
+    protected static Map<String, String> decodeDigestHeader(final String digestHeader) {
+        return stream(digestHeader.split(",")).map(h -> h.split("=", 2))
+                .collect(Collectors.toMap(a -> a[0], a -> a.length > 1 ? a[1] : ""));
+    }
 
     @Before
     public void setLogger() {
         logger = getLogger(this.getClass());
     }
 
-    protected static final int SERVER_PORT = parseInt(System.getProperty("fcrepo.dynamic.test.port", "8080"));
+    private static final int SERVER_PORT = parseInt(Objects.requireNonNullElse(
+            Strings.emptyToNull(System.getProperty("fcrepo.dynamic.test.port")), "8080"));
 
-    protected static final String HOSTNAME = "localhost";
+    private static final String HOSTNAME = "localhost";
 
-    protected static final String PROTOCOL = "http";
+    private static final String PROTOCOL = "http";
 
     protected static final String serverAddress = PROTOCOL + "://" + HOSTNAME + ":" + SERVER_PORT + "/";
 
-    protected static CloseableHttpClient client = createClient();
+    protected <T> T getBean(final Class<T> type) {
+        return containerWrapper.getSpringAppContext().getBean(type);
+    }
+
+    protected  <T> T getBean(final String name, final Class<T> type) {
+        return containerWrapper.getSpringAppContext().getBean(name, type);
+    }
+
+    protected static final CloseableHttpClient client = createClient();
 
     protected static CloseableHttpClient createClient() {
-        return HttpClientBuilder.create().setMaxConnPerRoute(MAX_VALUE).setMaxConnTotal(MAX_VALUE).build();
+        return createClient(false);
+    }
+
+    protected static CloseableHttpClient createClient(final boolean disableRedirects) {
+        final HttpClientBuilder client =
+            HttpClientBuilder.create().setMaxConnPerRoute(MAX_VALUE).setMaxConnTotal(MAX_VALUE);
+        if (disableRedirects) {
+            client.disableRedirectHandling();
+        }
+        return client.build();
     }
 
     protected static HttpPost postObjMethod() {
@@ -141,16 +210,14 @@ public abstract class AbstractResourceIT {
         return new HttpPatch(serverAddress + id);
     }
 
-    protected static HttpPost postObjMethod(final String id, final String query) {
-        if (query.equals("")) {
-            return new HttpPost(serverAddress + id);
-        }
-        return new HttpPost(serverAddress + id + "?" + query);
-    }
-
     protected static HttpPut putDSMethod(final String pid, final String ds, final String content)
             throws UnsupportedEncodingException {
-        final HttpPut put = new HttpPut(serverAddress + pid + "/" + ds);
+        return putDSMethod(pid + "/" + ds, content);
+    }
+
+    protected static HttpPut putDSMethod(final String id, final String content) throws
+            UnsupportedEncodingException {
+        final HttpPut put = new HttpPut(serverAddress + id);
         put.setEntity(new StringEntity(content == null ? "" : content));
         put.setHeader(CONTENT_TYPE, TEXT_PLAIN);
         put.setHeader(LINK, NON_RDF_SOURCE_LINK_HEADER);
@@ -182,7 +249,17 @@ public abstract class AbstractResourceIT {
      */
     protected static CloseableHttpResponse execute(final HttpUriRequest req) throws IOException {
         logger.debug("Executing: " + req.getMethod() + " to " + req.getURI());
-        return client.execute(req);
+        try {
+            return client.execute(req);
+        } catch (final NoHttpResponseException e) {
+            // sometimes the server is slow starting up -- retry once
+            try {
+                TimeUnit.SECONDS.sleep(2);
+                return client.execute(req);
+            } catch (final InterruptedException e2) {
+                throw new RuntimeException(e2);
+            }
+        }
     }
 
     /**
@@ -250,7 +327,7 @@ public abstract class AbstractResourceIT {
             if (!(result > 199) || !(result < 400)) {
                 logger.warn("Got status {}", result);
                 if (response.getEntity() != null) {
-                    logger.trace(EntityUtils.toString(response.getEntity()));
+                    logger.warn(EntityUtils.toString(response.getEntity()));
                 }
             }
             EntityUtils.consume(response.getEntity());
@@ -284,6 +361,16 @@ public abstract class AbstractResourceIT {
         return response.getFirstHeader("Location").getValue();
     }
 
+     /**
+     * Retrieve the value of the first Content-Location header from an open HTTP response.
+     *
+     * @param response the open response
+     * @return the value of the first Content-Location header in the response
+     */
+    protected static String getContentLocation(final HttpResponse response) {
+        return response.getFirstHeader(CONTENT_LOCATION).getValue();
+    }
+
     protected String getContentType(final HttpUriRequest method) throws IOException {
         return getContentType(method, OK);
     }
@@ -297,6 +384,39 @@ public abstract class AbstractResourceIT {
         }
     }
 
+    /**
+     * Get the etag of the given URI, as returned from a HEAD request
+     *
+     * @param uri uri of the resource
+     * @return etag
+     * @throws IOException
+     */
+    protected String getEtag(final String uri) throws IOException {
+        return getEtag(new HttpHead(uri));
+    }
+
+    /**
+     * Get the etag returned when executing the provided method
+     * @param method method to execute
+     * @return etag
+     * @throws IOException
+     */
+    protected String getEtag(final HttpUriRequest method) throws IOException {
+        try (final CloseableHttpResponse response = execute(method)) {
+            return getEtag(response);
+        }
+    }
+
+    /**
+     * Get the etag header value present in the provided response
+     * @param response response
+     * @return etag header value or null
+     */
+    protected String getEtag(final HttpResponse response) {
+        final var etag = response.getFirstHeader(HttpHeaders.ETAG);
+        return etag == null ? null : etag.getValue();
+    }
+
     protected static Collection<String> getLinkHeaders(final HttpResponse response) {
         return getHeader(response, LINK);
     }
@@ -305,6 +425,11 @@ public abstract class AbstractResourceIT {
         try (final CloseableHttpResponse response = execute(method)) {
             return getLinkHeaders(response);
         }
+    }
+
+    protected static List<String> headerValues(final HttpResponse response, final String headerName) {
+        return stream(response.getHeaders(headerName)).map(Header::getValue).map(s -> s.split(",")).flatMap(
+                Arrays::stream).map(String::trim).collect(toList());
     }
 
     protected static Collection<String> getHeader(final HttpResponse response, final String header) {
@@ -320,7 +445,7 @@ public abstract class AbstractResourceIT {
      * @return the graph retrieved
      * @throws IOException in case of IOException
      */
-    protected CloseableDataset getDataset(final CloseableHttpClient client, final HttpUriRequest req)
+    private CloseableDataset getDataset(final CloseableHttpClient client, final HttpUriRequest req)
             throws IOException {
         if (!req.containsHeader(ACCEPT)) {
             req.addHeader(ACCEPT, "application/n-triples");
@@ -362,14 +487,66 @@ public abstract class AbstractResourceIT {
         return getDataset(client, req);
     }
 
+    protected Model getModel(final String pid) throws Exception {
+        return getModel(null, pid, false);
+    }
+
+    protected Model getModel(final String pid, final boolean omitSMTs) throws IOException {
+        return getModel(null, pid, omitSMTs);
+    }
+
+    protected Model getModel(final String txUri, final String pid) throws Exception {
+        return getModel(txUri, pid, false);
+    }
+
+    /**
+     * Get a model of the triples for the resource.
+     * @param txUri id of the transaction
+     * @param pid id of the resource
+     * @param omitSMTs whether to omit server managed triples from the response.
+     * @return the model of the resource triples.
+     * @throws IOException on problems getting response.
+     */
+    protected Model getModel(final String txUri, final String pid, final boolean omitSMTs) throws IOException {
+        final Model model = createDefaultModel();
+        final HttpGet get = getObjMethod(pid);
+        if (txUri != null) {
+            get.addHeader(ATOMIC_ID_HEADER, txUri);
+        }
+        if (omitSMTs) {
+            get.addHeader("Prefer", OMIT_SERVER_PREFER_HEADER);
+        }
+        try (final CloseableHttpResponse response = execute(get)) {
+            model.read(response.getEntity().getContent(), serverAddress + pid, "TURTLE");
+        }
+        return model;
+    }
+
+    protected static InputStream streamModel(final Model model, final RDFFormat format) throws IOException {
+        try (final ByteArrayOutputStream bos = new ByteArrayOutputStream()) {
+            RDFDataMgr.write(bos, model, format);
+            return new ByteArrayInputStream(bos.toByteArray());
+        }
+    }
+
     protected CloseableHttpResponse createObject() {
         return createObject("");
     }
 
     protected CloseableHttpResponse createObject(final String pid) {
+        return createObjectWithLinkHeader(pid, null);
+    }
+
+    private CloseableHttpResponse createObjectWithLinkHeader(final String pid, final String... linkHeaders) {
         final HttpPost httpPost = postObjMethod("/");
-        if (pid.length() > 0) {
+        if (isNotEmpty(pid)) {
             httpPost.addHeader("Slug", pid);
+        }
+
+        if (linkHeaders != null && linkHeaders.length > 0) {
+            for (final String linkHeader : linkHeaders) {
+                httpPost.addHeader(LINK, linkHeader);
+            }
         }
         try {
             final CloseableHttpResponse response = execute(httpPost);
@@ -388,19 +565,58 @@ public abstract class AbstractResourceIT {
         }
     }
 
-    protected void createDatastream(final String pid, final String dsid, final String content) throws IOException {
+    protected void createObjectAndClose(final String pid, final String... linkHeaders) {
+        try {
+
+            createObjectWithLinkHeader(pid, linkHeaders).close();
+        } catch (final IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    protected String createDatastream(final String id, final String content) throws IOException {
+        try (final var response = execute(putDSMethod(id, content))) {
+            assertEquals(CREATED.getStatusCode(), getStatus(response));
+            return getLocation(response);
+        }
+    }
+
+    protected String createDatastream(final String pid, final String dsid, final String content) throws IOException {
         logger.trace("Attempting to create datastream for object: {} at datastream ID: {}", pid, dsid);
-        assertEquals(CREATED.getStatusCode(), getStatus(putDSMethod(pid, dsid, content)));
+        try (final var response = execute(putDSMethod(pid, dsid, content))) {
+            assertEquals(CREATED.getStatusCode(), getStatus(response));
+            return getLocation(response);
+        }
     }
 
     protected CloseableHttpResponse setProperty(final String pid, final String propertyUri, final String value)
             throws IOException {
-        return setProperty(pid, null, propertyUri, value);
+        return setProperty(pid, null, propertyUri, "\"" + value + "\"");
     }
 
-    protected CloseableHttpResponse setProperty(final String id, final String txId, final String propertyUri,
-            final String value) throws IOException {
+    protected CloseableHttpResponse setProperty(final String pid, final String propertyUri, final URI value)
+            throws IOException {
+        return setProperty(pid, null, propertyUri, "<" + value.toString() + ">");
+    }
+
+    private CloseableHttpResponse setProperty(final String id, final String txId, final String propertyUri,
+                                              final String value) throws IOException {
         final HttpPatch postProp = new HttpPatch(serverAddress + (txId != null ? txId + "/" : "") + id);
+        postProp.setHeader(CONTENT_TYPE, "application/sparql-update");
+        final String updateString =
+                "INSERT { <" + serverAddress + id.replace("/" + FCR_METADATA, "") +
+                        "> <" + propertyUri + "> " + value + " } WHERE { }";
+        postProp.setEntity(new StringEntity(updateString));
+        final CloseableHttpResponse dcResp = execute(postProp);
+        assertEquals(dcResp.getStatusLine().toString(), NO_CONTENT.getStatusCode(), getStatus(dcResp));
+        postProp.releaseConnection();
+        return dcResp;
+    }
+
+    protected CloseableHttpResponse setDescriptionProperty(final String id, final String txId,
+            final String propertyUri, final String value) throws IOException {
+        final HttpPatch postProp = new HttpPatch(serverAddress + (txId != null ? txId + "/" : "") + id +
+                "/fcr:metadata");
         postProp.setHeader(CONTENT_TYPE, "application/sparql-update");
         final String updateString =
                 "INSERT { <" + serverAddress + id + "> <" + propertyUri + "> \"" + value + "\" } WHERE { }";
@@ -425,14 +641,16 @@ public abstract class AbstractResourceIT {
         }
     }
 
-    protected static void addMixin(final String pid, final String mixinUrl) throws IOException {
-        final HttpPatch updateObjectGraphMethod = new HttpPatch(serverAddress + pid);
-        updateObjectGraphMethod.addHeader(CONTENT_TYPE, "application/sparql-update");
-        updateObjectGraphMethod.setEntity(new StringEntity(
-                "INSERT DATA { <> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <" + mixinUrl + "> . } "));
-        try (final CloseableHttpResponse response = execute(updateObjectGraphMethod)) {
-            assertEquals(NO_CONTENT.getStatusCode(), getStatus(response));
-        }
+    /**
+     * Add a transaction id to a http request.
+     *
+     * @param req a http request object.
+     * @param txId the transaction id.
+     * @return the http request object with the transaction id added as a header.
+     */
+    protected <T extends HttpRequestBase> T addTxTo(final T req, final String txId) {
+        req.addHeader(ATOMIC_ID_HEADER, txId);
+        return req;
     }
 
     /**
@@ -445,19 +663,16 @@ public abstract class AbstractResourceIT {
         return randomUUID().toString();
     }
 
-    /**
-     * Gets a random (but valid) property name for use in testing.
-     *
-     * @return string containing random property name
-     */
-    protected static String getRandomPropertyName() {
-        return randomUUID().toString();
-    }
-
     protected static void assertDeleted(final String id) {
         final String location = serverAddress + id;
         assertThat("Expected object to be deleted", getStatus(new HttpHead(location)), is(GONE.getStatusCode()));
         assertThat("Expected object to be deleted", getStatus(new HttpGet(location)), is(GONE.getStatusCode()));
+    }
+
+    protected static void assertNotFound(final String id) {
+        final String location = serverAddress + id;
+        assertThat("Expected object to return 404", getStatus(new HttpHead(location)), is(NOT_FOUND.getStatusCode()));
+        assertThat("Expected object to return 404", getStatus(new HttpGet(location)), is(NOT_FOUND.getStatusCode()));
     }
 
     protected static void assertNotDeleted(final String id) {
@@ -498,6 +713,77 @@ public abstract class AbstractResourceIT {
         }
         ttl.append(" <" + predicateUri + "> ");
         ttl.append(literal);
+    }
+
+    /**
+     * Test a response for the absence of a specific LINK header
+     *
+     * @param response the HTTP response
+     * @param uri the URI not to exist in the LINK header
+     * @param rel the rel argument to check for
+     */
+    protected static void assertNoLinkHeader(final HttpResponse response, final String uri, final String rel) {
+        assertEquals(0, countLinkHeader(response, uri, rel));
+    }
+
+    /**
+     * Test a response for a specific LINK header
+     *
+     * @param response the HTTP response
+     * @param uri the URI expected in the LINK header
+     * @param rel the rel argument to check for
+     */
+    protected static void checkForLinkHeader(final HttpResponse response, final String uri, final String rel) {
+        assertEquals(1, countLinkHeader(response, uri, rel));
+    }
+
+    /**
+     * Utility for counting LINK headers
+     *
+     * @param response the HTTP response
+     * @param uri the URI expected in the LINK header
+     * @param rel the rel argument to check for
+     * @return the count of LINK headers.
+     */
+    private static int countLinkHeader(final HttpResponse response, final String uri, final String rel) {
+        final Link linkA = Link.valueOf("<" + uri + ">; rel=" + rel);
+        return (int) Arrays.stream(response.getHeaders(LINK)).filter(x -> {
+            final Link linkB = Link.valueOf(x.getValue());
+            return linkB.equals(linkA);
+        }).count();
+    }
+
+    protected static String getOriginalResourceUri(final CloseableHttpResponse response) {
+        return getLinkHeaders(response).stream()
+            .map(x -> Link.valueOf(x))
+            .filter(x -> x.getRel().equals("original"))
+            .findFirst().get().getUri().toString();
+    }
+
+    protected String getExternalContentLinkHeader(final String url, final String handling, final String mimeType) {
+        // leave lots of room to leave things out of the link to test variations.
+        String link = "";
+        if (url != null && !url.isEmpty()) {
+            link += "<" + url + ">";
+        }
+
+        link += "; rel=\"" + EXTERNAL_CONTENT + "\"";
+
+        if (handling != null && !handling.isEmpty()) {
+            link += "; handling=\"" + handling + "\"";
+        }
+
+        if (mimeType != null && !mimeType.isEmpty()) {
+            link += "; type=\"" + mimeType + "\"";
+        }
+        return link;
+    }
+
+    protected static void assertConstrainedByPresent(final CloseableHttpResponse response) {
+        final Collection<String> linkHeaders = getLinkHeaders(response);
+        assertTrue("Constrained by link header not present",
+                linkHeaders.stream().map(Link::valueOf)
+                        .anyMatch(l -> l.getRel().equals(CONSTRAINED_BY.getURI())));
     }
 
 }

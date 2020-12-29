@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:context="http://www.springframework.org/schema/context"
+    xmlns:task="http://www.springframework.org/schema/task"
+    xmlns:p="http://www.springframework.org/schema/p"
+    xmlns:util="http://www.springframework.org/schema/util"
+    xsi:schemaLocation="
+    http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+    http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd
+    http://www.springframework.org/schema/task http://www.springframework.org/schema/task/spring-task.xsd
+    http://www.springframework.org/schema/util http://www.springframework.org/schema/util/spring-util.xsd">
+
+  <!-- Master context for the test application. -->
+  
+  <context:property-placeholder />
+  <context:annotation-config />
+
+  <bean id="connectionManager" class="org.apache.http.impl.conn.PoolingHttpClientConnectionManager"/>
+  
+  <bean class="org.fcrepo.kernel.api.TransactionManager"/>
+
+  <!-- Identifier translation chain -->
+  <util:list id="translationChain" value-type="org.fcrepo.kernel.api.identifiers.InternalIdentifierConverter">
+  </util:list>
+
+  <context:annotation-config/>
+
+  <context:component-scan base-package="org.fcrepo"/>
+  
+  <!-- Configuration of namespace prefixes -->
+  <bean name="rdfNamespaceRegistry" class="org.fcrepo.kernel.api.rdf.RdfNamespaceRegistry"
+      init-method="init">
+    <property name="configPath" value="classpath:/namespaces.yml" />
+    <property name="monitorForChanges" value="false" />
+  </bean>
+  
+  <!-- External content configuration -->
+  <bean name="externalContentPathValidator" class="org.fcrepo.http.api.ExternalContentPathValidator"
+      init-method="init">
+    <property name="configPath" value="src/test/resources/allowed_external_paths.txt" />
+    <property name="monitorForChanges" value="false" />
+  </bean>
+
+  <bean name="externalContentHandlerFactory" class="org.fcrepo.http.api.ExternalContentHandlerFactory">
+    <property name="validator" ref="externalContentPathValidator" />
+  </bean>
+
+</beans>

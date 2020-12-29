@@ -26,30 +26,30 @@ import static org.apache.jena.vocabulary.DC.title;
 import static org.apache.jena.vocabulary.RDF.type;
 import static org.apache.jena.vocabulary.RDFS.label;
 import static org.apache.jena.vocabulary.SKOS.prefLabel;
-import static java.time.Instant.now;
-import static java.time.ZoneId.of;
 import static java.util.Arrays.asList;
 import static java.util.Arrays.stream;
 import static java.util.Collections.emptyMap;
 import static java.util.stream.Collectors.joining;
 import static java.util.stream.Collectors.toMap;
 import static org.fcrepo.kernel.api.FedoraTypes.FCR_METADATA;
+import static org.fcrepo.kernel.api.FedoraTypes.FCR_VERSIONS;
 import static org.fcrepo.kernel.api.RdfLexicon.CONTAINS;
-import static org.fcrepo.kernel.api.RdfLexicon.CREATED_DATE;
-import static org.fcrepo.kernel.api.RdfLexicon.HAS_VERSION;
-import static org.fcrepo.kernel.api.RdfLexicon.HAS_VERSION_LABEL;
-import static org.fcrepo.kernel.api.RdfLexicon.REPOSITORY_NAMESPACE;
-import static org.fcrepo.kernel.api.RdfLexicon.WRITABLE;
+import static org.fcrepo.kernel.api.RdfLexicon.MEMENTO_TYPE;
+import static org.fcrepo.kernel.api.RdfLexicon.REPOSITORY_ROOT;
 import static org.fcrepo.kernel.api.RdfLexicon.isManagedPredicate;
+import static org.fcrepo.kernel.api.services.VersionService.MEMENTO_LABEL_FORMATTER;
+import static org.fcrepo.kernel.api.services.VersionService.MEMENTO_RFC_1123_FORMATTER;
 import static org.slf4j.LoggerFactory.getLogger;
 
-import java.time.format.DateTimeFormatter;
+import java.time.Instant;
+import java.util.Comparator;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.StringJoiner;
+
 import javax.ws.rs.core.UriInfo;
 
 import org.apache.jena.graph.Graph;
@@ -84,9 +84,6 @@ public class ViewHelpers {
 
     private static final List<Property>  TITLE_PROPERTIES = asList(label, title, DCTerms.title, prefLabel);
 
-    private static final String DEFAULT =
-        DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").withZone(of("GMT")).format(now());
-
     private ViewHelpers() {
         // Exists only to defeat instantiation.
     }
@@ -108,7 +105,8 @@ public class ViewHelpers {
      */
     public Iterator<Node> getVersions(final Graph graph,
         final Node subject) {
-        return getOrderedVersions(graph, subject, HAS_VERSION);
+        // Mementos should be ordered by date so use the getOrderedVersions.
+        return getOrderedVersions(graph, subject, CONTAINS.asResource());
     }
 
     /**
@@ -122,7 +120,7 @@ public class ViewHelpers {
      */
     public Iterator<Node> getOrderedVersions(final Graph g, final Node subject, final Resource predicate) {
         final List<Node> vs = listObjects(g, subject, predicate.asNode()).toList();
-        vs.sort((v1, v2) -> getVersionDate(g, v1).orElse(DEFAULT).compareTo(getVersionDate(g, v2).orElse(DEFAULT)));
+        vs.sort(Comparator.comparing(v -> getVersionDate(g, v)));
         return vs.iterator();
     }
 
@@ -148,14 +146,15 @@ public class ViewHelpers {
      }
 
     /**
-     * Gets a version label of a subject from the graph
+     * Get the date time as the version label.
      *
      * @param graph the graph
      * @param subject the subject
-     * @return the label of the version if one has been provided
+     * @return the datetime in RFC 1123 format.
      */
-    public Optional<String> getVersionLabel(final Graph graph, final Node subject) {
-        return getValue(graph, subject, HAS_VERSION_LABEL.asNode());
+    public String getVersionLabel(final Graph graph, final Node subject) {
+        final Instant datetime = getVersionDate(graph, subject);
+        return MEMENTO_RFC_1123_FORMATTER.format(datetime);
     }
 
     /**
@@ -165,8 +164,9 @@ public class ViewHelpers {
      * @param subject the subject
      * @return the modification date if it exists
      */
-    public Optional<String> getVersionDate(final Graph graph, final Node subject) {
-        return getValue(graph, subject, CREATED_DATE.asNode());
+    public Instant getVersionDate(final Graph graph, final Node subject) {
+        final String[] pathParts = subject.getURI().split("/");
+        return MEMENTO_LABEL_FORMATTER.parse(pathParts[pathParts.length - 1], Instant::from);
     }
 
     private static Optional<String> getValue(final Graph graph, final Node subject, final Node predicate) {
@@ -199,19 +199,20 @@ public class ViewHelpers {
      * @return whether the subject is writable
      */
     public boolean isWritable(final Graph graph, final Node subject) {
-        return getValue(graph, subject, WRITABLE.asNode()).filter("true"::equals).isPresent();
+        // XXX: always return true until we can determine a better way to control the HTML UI
+        return true;
     }
 
     /**
-     * Determines whether the subject is of type fedora:Version.
-     * true if node has type fedora:Version
+     * Determines whether the subject is of type memento:Memento.
+     *
      * @param graph the graph
      * @param subject the subject
      * @return whether the subject is a versioned node
      */
     public boolean isVersionedNode(final Graph graph, final Node subject) {
         return listObjects(graph, subject, RDF.type.asNode()).toList().stream().map(Node::getURI)
-            .anyMatch((REPOSITORY_NAMESPACE + "Version")::equals);
+            .anyMatch((MEMENTO_TYPE)::equals);
     }
 
     /**
@@ -237,6 +238,37 @@ public class ViewHelpers {
             return uriAsLink ? "&lt;<a href=\"" + obj.getURI() + "\">" + obj.getURI() + "</a>&gt;" : obj.getURI();
         }
         return "";
+    }
+
+    /**
+     * Returns the original resource as a URI Node if
+     * the subject represents a memento uri; otherwise it
+     * returns the subject parameter.
+     * @param subject the subject
+     * @return a URI node of the original resource.
+     */
+    public Node getOriginalResource(final Node subject) {
+        if (!subject.isURI()) {
+            return subject;
+        }
+
+        final String subjectUri = subject.getURI();
+        final int index = subjectUri.indexOf(FCR_VERSIONS);
+        if (index > 0) {
+            return NodeFactory.createURI(subjectUri.substring(0, index - 1));
+        } else {
+            return subject;
+        }
+    }
+
+    /**
+     * Same as above but takes a string.
+     * NB: This method is currently used in fcrepo-http-api/src/main/resources/views/default.vsl
+     * @param subjectUri the URI
+     * @return a node
+     */
+    public Node getOriginalResource(final String subjectUri) {
+        return getOriginalResource(createURI(subjectUri));
     }
 
     /**
@@ -345,6 +377,17 @@ public class ViewHelpers {
     }
 
     /**
+     * Is the subject the repository root resource.
+     *
+     * @param graph The graph
+     * @param subject The current subject
+     * @return true if has rdf:type http://fedora.info/definitions/v4/repository#RepositoryRoot
+     */
+    public boolean isRootResource(final Graph graph, final Node subject) {
+        return graph.contains(subject, rdfType().asNode(), REPOSITORY_ROOT.asNode());
+    }
+
+    /**
      * Convert a URI string to an RDF node
      *
      * @param r the uri string
@@ -424,5 +467,52 @@ public class ViewHelpers {
      */
     public static boolean isManagedProperty(final Node property) {
         return property.isURI() && isManagedPredicate.test(createProperty(property.getURI()));
+    }
+
+    /**
+     * Find a key in a map and format it as a string
+     * @param input map of objects.
+     * @param key the key to locate in the map.
+     * @return the result string.
+     */
+    public static String getString(final Map<String, Object> input, final String key) {
+        if (input.get(key) == null) {
+            return "";
+        }
+        final var value = input.get(key);
+        final var clazz = value.getClass();
+        final String output;
+        if (clazz == String.class) {
+            output = formatAsString((String) value);
+        } else if (clazz == String[].class) {
+            output = formatAsString((String[]) value);
+        } else if (clazz == Long.class) {
+            output = formatAsString((Long) value);
+        } else {
+            output = "";
+        }
+        return output;
+    }
+
+    /**
+     * Format to a string and check for null values
+     * @param input a string array or null
+     * @return a string.
+     */
+    private static String formatAsString(final String[] input) {
+        return (input == null || input.length == 0 ? "" :  String.join(", ", input));
+    }
+
+    /**
+     * Format a string to check for null values
+     * @param input a string or null
+     * @return a string.
+     */
+    private static String formatAsString(final String input) {
+        return (input == null ? "" : input);
+    }
+
+    private static String formatAsString(final Long input) {
+        return (input == null ? "" : input.toString());
     }
 }

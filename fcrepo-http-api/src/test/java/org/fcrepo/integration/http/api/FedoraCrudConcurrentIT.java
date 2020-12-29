@@ -33,6 +33,7 @@ import org.apache.http.client.methods.HttpPatch;
 import org.apache.http.client.methods.HttpRequestBase;
 import org.apache.http.entity.BasicHttpEntity;
 import org.junit.Test;
+import org.springframework.test.context.TestExecutionListeners;
 
 /**
  * This "test" is a utility for collecting the timing of concurrent operations operations.
@@ -43,6 +44,9 @@ import org.junit.Test;
  *
  * @author lsitu
  */
+@TestExecutionListeners(
+        listeners = { TestIsolationExecutionListener.class },
+        mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
 public class FedoraCrudConcurrentIT extends AbstractResourceIT {
 
     private static final String TEST_ACTIVATION_PROPERTY = "fcrepo.test.http.concurrent";
@@ -58,8 +62,8 @@ public class FedoraCrudConcurrentIT extends AbstractResourceIT {
 
         final int[] numThreadsToTest = {2, 4, 8, 16, 32};
         logger.info("# Start CRUD concurrent performance testing...");
-        for (int i = 0; i < numThreadsToTest.length; i++) {
-            startCrudConcurrentPerformanceTest(numThreadsToTest[i]);
+        for (final int aNumThreadsToTest : numThreadsToTest) {
+            startCrudConcurrentPerformanceTest(aNumThreadsToTest);
         }
     }
 
@@ -67,8 +71,8 @@ public class FedoraCrudConcurrentIT extends AbstractResourceIT {
      * Test CRUD concurrent access performance:
      * create/update/delete object, create/update/delete content file
      *
-     * @param numThreads
-     * @throws Exception
+     * @param numThreads to run
+     * @throws Exception on error
      */
     private void startCrudConcurrentPerformanceTest(final int numThreads) throws Exception {
         String pid = null;
@@ -243,10 +247,9 @@ public class FedoraCrudConcurrentIT extends AbstractResourceIT {
     }
 
     private static void startThreads(final List<HttpRunner> tasks) throws InterruptedException {
-        final int taskSize = tasks.size();
-        for (int i = 0; i < taskSize; i++) {
+        for (final HttpRunner task : tasks) {
 
-            final Thread thread = new Thread(tasks.get(i));
+            final Thread thread = new Thread(task);
             thread.run();
             thread.join();
         }
@@ -293,7 +296,7 @@ public class FedoraCrudConcurrentIT extends AbstractResourceIT {
                             taskName, request.getURI().toString(),
                             statusCode, String.valueOf(responseTime));
                 assertEquals(taskName + " exited abnormally.", expectedStatusCode, statusCode);
-            } catch (IOException e) {
+            } catch (final IOException e) {
                 logger.error("Error {} {} got IOException: {}", taskName, request.getURI().toString(), e.getMessage());
             } finally {
                 request.releaseConnection();

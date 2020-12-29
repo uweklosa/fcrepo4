@@ -19,8 +19,6 @@ package org.fcrepo.jms;
 
 import static org.slf4j.LoggerFactory.getLogger;
 
-import java.io.IOException;
-
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 import javax.inject.Inject;
@@ -31,8 +29,9 @@ import javax.jms.Message;
 import javax.jms.MessageProducer;
 import javax.jms.Session;
 
+import com.google.common.eventbus.AllowConcurrentEvents;
 import org.apache.activemq.ActiveMQConnectionFactory;
-import org.fcrepo.kernel.api.observer.FedoraEvent;
+import org.fcrepo.kernel.api.observer.Event;
 import org.slf4j.Logger;
 
 import com.google.common.eventbus.EventBus;
@@ -49,45 +48,45 @@ import com.google.common.eventbus.Subscribe;
 abstract class AbstractJMSPublisher {
 
     @Inject
-    protected EventBus eventBus;
+    private EventBus eventBus;
 
     @Inject
-    protected ActiveMQConnectionFactory connectionFactory;
+    private ActiveMQConnectionFactory connectionFactory;
 
     @Inject
-    protected JMSEventMessageFactory eventFactory;
+    private JMSEventMessageFactory eventFactory;
 
-    protected Connection connection;
+    private Connection connection;
 
     protected Session jmsSession;
 
-    protected MessageProducer producer;
+    private MessageProducer producer;
 
-    protected static final Logger LOGGER = getLogger(AbstractJMSPublisher.class);
+    private static final Logger LOGGER = getLogger(AbstractJMSPublisher.class);
 
     protected abstract Destination createDestination() throws JMSException;
 
     /**
-     * When an EventBus mesage is received, map it to our JMS
+     * When an EventBus message is received, map it to our JMS
      * message payload and push it onto the queue.
      *
-     * @param fedoraEvent the fedora event
+     * @param event the fedora event
      * @throws JMSException if JMS exception occurred
-     * @throws IOException if IO exception occurred
      */
     @Subscribe
-    public void publishJCREvent(final FedoraEvent fedoraEvent) throws JMSException, IOException {
-        LOGGER.debug("Received an event from the internal bus.");
+    @AllowConcurrentEvents
+    public void publishJCREvent(final Event event) throws JMSException {
+        LOGGER.debug("Received an event from the internal bus. {}", event);
         final Message tm =
-                eventFactory.getMessage(fedoraEvent, jmsSession);
-        LOGGER.debug("Transformed the event to a JMS message.");
+                eventFactory.getMessage(event, jmsSession);
+        LOGGER.trace("Transformed the event to a JMS message.");
         producer.send(tm);
 
         LOGGER.debug("Put event: {} onto JMS.", tm.getJMSMessageID());
     }
 
     /**
-     * Connect to JCR Repostory and JMS queue
+     * Connect to JCR Repository and JMS queue
      *
      * @throws JMSException if JMS Exception occurred
      */

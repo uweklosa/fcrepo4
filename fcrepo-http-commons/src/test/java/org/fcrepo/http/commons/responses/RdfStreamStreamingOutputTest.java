@@ -42,11 +42,12 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Stream;
 
-import javax.jcr.Session;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.MediaType;
 
 import com.google.common.util.concurrent.FutureCallback;
+import com.google.common.util.concurrent.MoreExecutors;
+
 import org.apache.jena.rdf.model.RDFNode;
 import org.apache.jena.riot.RiotException;
 import org.fcrepo.kernel.api.rdf.DefaultRdfStream;
@@ -62,7 +63,7 @@ import org.apache.jena.graph.Triple;
 import org.apache.jena.rdf.model.Model;
 
 import org.junit.runner.RunWith;
-import org.mockito.runners.MockitoJUnitRunner;
+import org.mockito.junit.MockitoJUnitRunner;
 
 /**
  * <p>RdfStreamStreamingOutputTest class.</p>
@@ -86,9 +87,6 @@ public class RdfStreamStreamingOutputTest {
 
     @Mock
     private RdfStream mockRdfStream;
-
-    @Mock
-    private Session mockSession;
 
     private final MediaType testMediaType = valueOf("application/rdf+xml");
 
@@ -120,12 +118,12 @@ public class RdfStreamStreamingOutputTest {
     @Test
     public void testWriteWithNamespace() throws IOException {
         final Map<String, String> namespaces = new HashMap<>();
-        namespaces.put("a", "info:a");
+        namespaces.put("a", "info:");
         try (final RdfStream input = new DefaultRdfStream(triple.getSubject(), of(triple));
                 final ByteArrayOutputStream output = new ByteArrayOutputStream()) {
             new RdfStreamStreamingOutput(input, namespaces, TURTLE_TYPE).write(output);
             final String s = output.toString("UTF-8");
-            assertTrue(s.replaceAll("\\s+", " ").contains("@prefix a: <info:a>"));
+            assertTrue(s.replaceAll("\\s+", " ").contains("@prefix a: <info:>"));
         }
     }
 
@@ -189,11 +187,11 @@ public class RdfStreamStreamingOutputTest {
 
             @Override
             public void onFailure(final Throwable e) {
-                LOGGER.info("Got exception:", e.getMessage());
+                LOGGER.debug("Got exception:", e.getMessage());
                 assertTrue("Got wrong kind of exception!", e instanceof RiotException);
             }
         };
-        addCallback(testRdfStreamStreamingOutput, callback);
+        addCallback(testRdfStreamStreamingOutput, callback, MoreExecutors.directExecutor());
         try (final OutputStream mockOutputStream = mock(OutputStream.class, (Answer<Object>) invocation -> {
             throw new RiotException("Expected.");
         })) {

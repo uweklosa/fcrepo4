@@ -23,6 +23,7 @@ import static org.fcrepo.kernel.api.utils.ContentDigest.asURI;
 import static org.fcrepo.kernel.api.utils.ContentDigest.getAlgorithm;
 import static org.junit.Assert.assertEquals;
 
+import org.fcrepo.kernel.api.utils.ContentDigest.DIGEST_ALGORITHM;
 import org.junit.Test;
 
 /**
@@ -53,12 +54,23 @@ public class ContentDigestTest {
     @Test
     public void testSHA256() {
         assertEquals("Failed to produce a proper content digest URI!",
-                create("urn:sha256:fake"), asURI("SHA-256", "fake"));
+                create("urn:sha-256:fake"), asURI("SHA-256", "fake"));
     }
 
     @Test
     public void testMissingAlgorithm() {
         assertEquals("Failed to produce a proper content digest URI!",
                 create("missing:fake"), asURI("SHA-819", "fake"));
+    }
+
+    @Test
+    public void testFromAlgorithm() {
+        assertEquals(DIGEST_ALGORITHM.SHA1, DIGEST_ALGORITHM.fromAlgorithm("SHA"));
+        assertEquals(DIGEST_ALGORITHM.SHA1, DIGEST_ALGORITHM.fromAlgorithm("sha-1"));
+    }
+
+    @Test
+    public void testFromAlgorithmMissing() {
+        assertEquals(DIGEST_ALGORITHM.MISSING, DIGEST_ALGORITHM.fromAlgorithm("what"));
     }
 }

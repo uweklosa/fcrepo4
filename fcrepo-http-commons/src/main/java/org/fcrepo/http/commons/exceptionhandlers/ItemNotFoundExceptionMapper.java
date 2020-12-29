@@ -17,21 +17,20 @@
  */
 package org.fcrepo.http.commons.exceptionhandlers;
 
-import static javax.ws.rs.core.Response.status;
-import static javax.ws.rs.core.Response.Status.NOT_FOUND;
-import static org.slf4j.LoggerFactory.getLogger;
+import org.fcrepo.kernel.api.exception.ItemNotFoundException;
+import org.slf4j.Logger;
 
-import javax.jcr.ItemNotFoundException;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.ext.ExceptionMapper;
 import javax.ws.rs.ext.Provider;
 
-import org.slf4j.Logger;
+import static org.slf4j.LoggerFactory.getLogger;
+
 
 /**
- * Translate jcr ItemNotFoundException to HTTP 404 Not Found
+ * Catch ItemNotFoundException
  *
- * @author lsitu
+ * @author pwinckles
  */
 @Provider
 public class ItemNotFoundExceptionMapper implements
@@ -43,6 +42,8 @@ public class ItemNotFoundExceptionMapper implements
     @Override
     public Response toResponse(final ItemNotFoundException e) {
         debugException(this, e, LOGGER);
-        return status(NOT_FOUND).build();
+        return Response.status(Response.Status.NOT_FOUND).
+                entity("Error: " + e.getMessage()).build();
     }
 }
+

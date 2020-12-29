@@ -26,12 +26,9 @@ import java.util.function.Supplier;
 import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.UriInfo;
 
-import org.fcrepo.kernel.api.services.NodeService;
-
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mock;
-import org.modeshape.jcr.api.NamespaceRegistry;
 
 /**
  * <p>AbstractResourceTest class.</p>
@@ -43,9 +40,6 @@ public class AbstractResourceTest {
     private AbstractResource testObj;
 
     @Mock
-    private NodeService mockNodes;
-
-    @Mock
     private Supplier<String> mockPids;
 
     @Mock
@@ -53,9 +47,6 @@ public class AbstractResourceTest {
 
     @Mock
     private HttpHeaders mockHeaders;
-
-    @Mock
-    private NamespaceRegistry mockNames;
 
     @Before
     public void setUp() {
@@ -67,12 +58,6 @@ public class AbstractResourceTest {
     public void testSetPidMinter() {
         setField(testObj, "pidMinter", mockPids);
         assertEquals(mockPids, testObj.pidMinter);
-    }
-
-    @Test
-    public void testSetNodeService() {
-        setField(testObj, "nodeService", mockNodes);
-        assertEquals(mockNodes, testObj.nodeService);
     }
 
     @Test

@@ -18,14 +18,13 @@
 package org.fcrepo.jms;
 
 import static javax.jms.Session.AUTO_ACKNOWLEDGE;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.util.ReflectionTestUtils.setField;
-
-import java.io.IOException;
 
 import javax.jms.Connection;
 import javax.jms.JMSException;
@@ -34,13 +33,13 @@ import javax.jms.MessageProducer;
 
 import org.apache.activemq.ActiveMQConnectionFactory;
 
-import org.fcrepo.kernel.api.observer.FedoraEvent;
+import org.fcrepo.kernel.api.observer.Event;
 
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.runners.MockitoJUnitRunner;
+import org.mockito.junit.MockitoJUnitRunner;
 
 import com.google.common.eventbus.EventBus;
 
@@ -93,10 +92,10 @@ abstract class AbstractJMSPublisherTest {
     }
 
     @Test
-    public void testPublishJCREvent() throws IOException, JMSException {
+    public void testPublishJCREvent() throws JMSException {
         final Message mockMsg = mock(Message.class);
-        final FedoraEvent mockEvent = mock(FedoraEvent.class);
-        when(mockEventFactory.getMessage(eq(mockEvent), any(javax.jms.Session.class))).thenReturn(mockMsg);
+        final Event mockEvent = mock(Event.class);
+        when(mockEventFactory.getMessage(eq(mockEvent), isNull())).thenReturn(mockMsg);
         testJMSPublisher.publishJCREvent(mockEvent);
         verify(mockProducer).send(mockMsg);
     }

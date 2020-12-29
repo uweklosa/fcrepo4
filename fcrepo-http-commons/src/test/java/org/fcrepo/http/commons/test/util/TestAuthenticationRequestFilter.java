@@ -27,6 +27,7 @@ import java.io.IOException;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.security.Principal;
+import java.util.Base64;
 import java.util.Set;
 
 import javax.servlet.Filter;
@@ -39,7 +40,6 @@ import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.WebApplicationException;
 
 import org.glassfish.grizzly.http.server.GrizzlyPrincipal;
-import org.glassfish.jersey.internal.util.Base64;
 import org.slf4j.Logger;
 
 /**
@@ -65,9 +65,13 @@ public class TestAuthenticationRequestFilter implements Filter {
         final String username = getUsername(req);
         // Validate the extracted credentials
         Set<String> containerRoles = emptySet();
-        if (FEDORA_ADMIN_USER.equals(username)) {
+        if (username == null) {
+            log.debug("ANONYMOUS");
+        } else if (FEDORA_ADMIN_USER.equals(username)) {
             containerRoles = singleton("fedoraAdmin");
             log.debug("ADMIN AUTHENTICATED");
+        } else if ("noroles".equals(username)) {
+            log.debug("USER (without roles); AUTHENTICATED");
         } else {
             containerRoles = singleton("fedoraUser");
             log.debug("USER AUTHENTICATED");
@@ -76,15 +80,9 @@ public class TestAuthenticationRequestFilter implements Filter {
         chain.doFilter(proxy, response);
     }
 
-    /**
-     * @param request
-     * @param username
-     * @param containerRoles
-     * @return
-     */
     private static ServletRequest proxy(final HttpServletRequest request,
             final String username, final Set<String> containerRoles) {
-        final Principal user = new GrizzlyPrincipal(username);
+        final Principal user = username != null ? new GrizzlyPrincipal(username) : null;
         final HttpServletRequest result =
                 (HttpServletRequest) newProxyInstance(request.getClass()
                         .getClassLoader(),
@@ -121,7 +119,7 @@ public class TestAuthenticationRequestFilter implements Filter {
             return null;
         }
         authentication = authentication.substring("Basic ".length());
-        final String[] values = Base64.decodeAsString(authentication).split(":");
+        final String[] values = new String(Base64.getDecoder().decode(authentication)).split(":");
         if (values.length < 2) {
             throw new WebApplicationException(400);
             // "Invalid syntax for username and password"

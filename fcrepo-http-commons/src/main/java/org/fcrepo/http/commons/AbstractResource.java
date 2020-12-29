@@ -26,19 +26,15 @@ import javax.ws.rs.core.UriInfo;
 
 import org.apache.jena.rdf.model.Resource;
 
-import org.fcrepo.http.commons.session.SessionFactory;
 import org.fcrepo.kernel.api.models.FedoraResource;
 import org.fcrepo.kernel.api.identifiers.IdentifierConverter;
-import org.fcrepo.kernel.api.services.BinaryService;
-import org.fcrepo.kernel.api.services.NodeService;
-import org.fcrepo.kernel.api.services.ContainerService;
+import org.fcrepo.kernel.api.models.ResourceFactory;
+import org.fcrepo.kernel.api.services.TimeMapService;
 import org.fcrepo.kernel.api.services.VersionService;
-import org.fcrepo.kernel.api.services.functions.HierarchicalIdentifierSupplier;
+import org.fcrepo.kernel.api.services.functions.ConfigurableHierarchicalSupplier;
 import org.fcrepo.kernel.api.services.functions.UniqueValueSupplier;
 
 import org.jvnet.hk2.annotations.Optional;
-
-import com.google.common.eventbus.EventBus;
 
 /**
  * Superclass for Fedora JAX-RS Resources, providing convenience fields and methods.
@@ -60,25 +56,7 @@ public class AbstractResource {
     protected HttpHeaders headers;
 
     @Inject
-    protected SessionFactory sessions;
-
-    /**
-     * The JCR node service
-     */
-    @Inject
-    protected NodeService nodeService;
-
-    /**
-     * The repository object service
-     */
-    @Inject
-    protected ContainerService containerService;
-
-    /**
-     * The bitstream service
-     */
-    @Inject
-    protected BinaryService binaryService;
+    protected ResourceFactory resourceFactory;
 
     /**
      * The version service
@@ -86,9 +64,11 @@ public class AbstractResource {
     @Inject
     protected VersionService versionService;
 
+    /**
+     * The timemap service
+     */
     @Inject
-    @Optional
-    protected EventBus eventBus;
+    protected TimeMapService timeMapService;
 
     /**
      * A resource that can mint new Fedora PIDs.
@@ -97,7 +77,9 @@ public class AbstractResource {
     @Optional
     protected Supplier<String> pidMinter;
 
-    protected UniqueValueSupplier defaultPidMinter = new DefaultPathMinter();
+    // Mint non-hierarchical identifiers. To force pairtree creation as default, use
+    //  ConfigurableHierarchicalSupplier(int length, count) instead.
+    protected UniqueValueSupplier defaultPidMinter = new ConfigurableHierarchicalSupplier();
 
     /**
      * Convert a JAX-RS list of PathSegments to a JCR path
@@ -106,8 +88,8 @@ public class AbstractResource {
      * @param originalPath the original path
      * @return String jcr path
      */
-    public static final String toPath(final IdentifierConverter<Resource, FedoraResource> idTranslator,
-                                      final String originalPath) {
+    public static String toPath(final IdentifierConverter<Resource, FedoraResource> idTranslator,
+                                final String originalPath) {
 
         final Resource resource = idTranslator.toDomain(originalPath);
 
@@ -115,7 +97,4 @@ public class AbstractResource {
 
         return path.isEmpty() ? "/" : path;
     }
-
-    private static class DefaultPathMinter implements HierarchicalIdentifierSupplier { }
-
 }

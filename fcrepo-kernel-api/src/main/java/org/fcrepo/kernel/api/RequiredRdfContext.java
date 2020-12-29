@@ -29,23 +29,14 @@ public enum RequiredRdfContext implements TripleCategory {
     /* A Minimal representation of Rdf Triples */
     MINIMAL,
 
-    /* User-created properties Context */
-    PROPERTIES,
-
     /* Versions Context */
     VERSIONS,
-
-    /* Fixity Context */
-    FIXITY,
 
     /* fedora:EmbedResources Context: embedded child resources */
     EMBED_RESOURCES,
 
     /* fedora:InboundReferences Context: assertions from other Fedora resources */
     INBOUND_REFERENCES,
-
-    /* fedora:ServerManaged Context: all server-managed triples */
-    SERVER_MANAGED,
 
     /* fedora:PreferMembership Context: ldp membership triples */
     LDP_MEMBERSHIP,

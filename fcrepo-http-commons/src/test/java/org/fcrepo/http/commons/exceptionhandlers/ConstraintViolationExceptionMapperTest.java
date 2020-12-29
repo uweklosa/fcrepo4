@@ -32,8 +32,7 @@ import javax.servlet.ServletContext;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.Mock;
-import org.mockito.runners.MockitoJUnitRunner;
+import org.mockito.junit.MockitoJUnitRunner;
 
 /**
  * ConstraintViolationExceptionMapperTest
@@ -41,15 +40,12 @@ import org.mockito.runners.MockitoJUnitRunner;
  * @author whikloj
  * @since 2015-06-22
  */
-@RunWith(MockitoJUnitRunner.class)
+@RunWith(MockitoJUnitRunner.Silent.class)
 public class ConstraintViolationExceptionMapperTest {
 
     private UriInfo mockInfo;
 
     private ServletContext mockContext;
-
-    @Mock
-    private ConstraintViolationExceptionMapper mapper;
 
     @Before
     public void setUp() {

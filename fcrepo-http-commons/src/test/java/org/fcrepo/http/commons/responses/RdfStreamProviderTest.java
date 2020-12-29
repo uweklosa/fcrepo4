@@ -24,7 +24,6 @@ import static org.apache.jena.rdf.model.ModelFactory.createDefaultModel;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.when;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -32,10 +31,6 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
-import javax.jcr.NamespaceRegistry;
-import javax.jcr.RepositoryException;
-import javax.jcr.Session;
-import javax.jcr.Workspace;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.MediaType;
 
@@ -43,38 +38,25 @@ import org.fcrepo.kernel.api.RdfStream;
 import org.fcrepo.kernel.api.rdf.DefaultRdfStream;
 import org.junit.Before;
 import org.junit.Test;
-import org.mockito.Mock;
 import org.apache.jena.graph.Triple;
 import org.apache.jena.rdf.model.Model;
 
 import org.junit.runner.RunWith;
-import org.mockito.runners.MockitoJUnitRunner;
+import org.mockito.junit.MockitoJUnitRunner;
 
 /**
  * <p>RdfStreamProviderTest class.</p>
  *
  * @author ajs6f
  */
-@RunWith(MockitoJUnitRunner.class)
+@RunWith(MockitoJUnitRunner.Silent.class)
 public class RdfStreamProviderTest {
 
     private final RdfStreamProvider testProvider = new RdfStreamProvider();
 
-    @Mock
-    private Session mockSession;
-
-    @Mock
-    private Workspace mockWorkspace;
-
-    @Mock
-    private NamespaceRegistry mockNamespaceRegistry;
 
     @Before
-    public void setUp() throws RepositoryException {
-        when(mockSession.getWorkspace()).thenReturn(mockWorkspace);
-        when(mockWorkspace.getNamespaceRegistry()).thenReturn(
-                mockNamespaceRegistry);
-        when(mockNamespaceRegistry.getPrefixes()).thenReturn(new String[] {});
+    public void setUp() throws Exception {
     }
 
     @Test
@@ -105,7 +87,7 @@ public class RdfStreamProviderTest {
         final Map<String, String> namespaces = new HashMap<>();
         try (final RdfStream rdfStream = new DefaultRdfStream(createURI("info:test"), of(t));
                 final RdfNamespacedStream nsStream = new RdfNamespacedStream(rdfStream, namespaces)) {
-            try (ByteArrayOutputStream entityStream = new ByteArrayOutputStream();) {
+            try (final ByteArrayOutputStream entityStream = new ByteArrayOutputStream()) {
                 testProvider.writeTo(nsStream, RdfNamespacedStream.class, null, null,
                         MediaType.valueOf("application/rdf+xml"), null, entityStream);
                 final byte[] result = entityStream.toByteArray();

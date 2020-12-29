@@ -17,43 +17,41 @@
  */
 package org.fcrepo.kernel.api.services;
 
-import org.fcrepo.kernel.api.FedoraSession;
+import org.fcrepo.kernel.api.Transaction;
+import org.fcrepo.kernel.api.identifiers.FedoraId;
+
+import java.time.format.DateTimeFormatter;
+
+import static java.time.ZoneOffset.UTC;
+import static java.time.format.DateTimeFormatter.RFC_1123_DATE_TIME;
 
 /**
+ * Service for creating versions of resources
+ *
  * @author bbpennel
+ * @author whikloj
  * @since Feb 19, 2014
  */
 public interface VersionService {
 
     /**
-     * Explicitly creates a version for the nodes at each path provided.
-     *
-     * @param session the session in which the node resides
-     * @param absPath absolute paths to the node
-     * @param label a label to be applied to the new version
-     * @return the identifier
+     * To format a datetime for use as a Memento path.
      */
-    String createVersion(FedoraSession session, String absPath, String label);
+    DateTimeFormatter MEMENTO_LABEL_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMddHHmmss")
+            .withZone(UTC);
 
     /**
-     * Reverts the node to the version identified by the label.  This method
-     * will throw a PathNotFoundException if no version with the given label is
-     * found.
-     *
-     * @param session the session in which the node resides
-     * @param absPath the path to the node whose version is to be reverted
-     * @param label identifies the historic version
+     * To format a datetime as RFC-1123 with correct timezone.
      */
-    void revertToVersion(FedoraSession session, String absPath, String label);
+    DateTimeFormatter MEMENTO_RFC_1123_FORMATTER = RFC_1123_DATE_TIME.withZone(UTC);
 
     /**
-     * Remove a version of a node.  This method will throw a PathNotFoundException
-     * if no version with the given label is found.
+     * Explicitly creates a version for the resource at the path provided.
      *
-     * @param session the session in which the node resides
-     * @param absPath the path to the node whose version is to be removed
-     * @param label identifies the historic version by label or id
+     * @param transaction the transaction in which the resource resides
+     * @param fedoraId the internal resource id
+     * @param userPrincipal the user principal
      */
-    void removeVersion(FedoraSession session, String absPath, String label);
+    void createVersion(Transaction transaction, FedoraId fedoraId, String userPrincipal);
 
 }

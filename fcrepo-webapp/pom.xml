@@ -3,7 +3,7 @@
   <parent>
     <groupId>org.fcrepo</groupId>
     <artifactId>fcrepo</artifactId>
-    <version>5.0.0-SNAPSHOT</version>
+    <version>6.0.0-SNAPSHOT</version>
   </parent>
 
   <artifactId>fcrepo-webapp</artifactId>
@@ -22,30 +22,13 @@
     <maven.build.timestamp.format>yyyy-MM-dd</maven.build.timestamp.format>
     <!-- for standalone operation -->
     <jetty.users.file>${project.build.directory}/test-classes/jetty-users.properties</jetty.users.file>
-    <fcrepo.modeshape.configuration>classpath:/config/servlet-auth/repository.json</fcrepo.modeshape.configuration>
+    <jetty-console.version>1.63</jetty-console.version>
   </properties>
-
-  <dependencyManagement>
-    <dependencies>
-      <dependency>
-        <groupId>org.fcrepo</groupId>
-        <artifactId>fcrepo-jcr-bom</artifactId>
-        <version>${project.version}</version>
-        <type>pom</type>
-        <scope>import</scope>
-      </dependency>
-    </dependencies>
-  </dependencyManagement>
 
   <dependencies>
     <dependency>
       <groupId>ch.qos.logback</groupId>
       <artifactId>logback-classic</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.fcrepo</groupId>
-      <artifactId>fcrepo-kernel-modeshape</artifactId>
-      <version>${project.version}</version>
     </dependency>
     <dependency>
       <groupId>org.fcrepo</groupId>
@@ -59,9 +42,18 @@
     </dependency>
     <dependency>
       <groupId>org.fcrepo</groupId>
+      <artifactId>fcrepo-kernel-impl</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.fcrepo</groupId>
+      <artifactId>fcrepo-persistence-ocfl</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.fcrepo</groupId>
       <artifactId>fcrepo-configs</artifactId>
       <version>${project.version}</version>
-      <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.fcrepo</groupId>
@@ -74,6 +66,11 @@
       <version>${project.version}</version>
     </dependency>
     <dependency>
+      <groupId>org.fcrepo</groupId>
+      <artifactId>fcrepo-search-impl</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
       <groupId>org.eclipse.jetty</groupId>
       <artifactId>jetty-webapp</artifactId>
       <version>${jetty.version}</version>
@@ -83,18 +80,6 @@
           <artifactId>javax.servlet</artifactId>
         </exclusion>
       </exclusions>
-    </dependency>
-    
-    <dependency>
-      <groupId>io.dropwizard.metrics</groupId>
-      <artifactId>metrics-core</artifactId>
-      <version>${metrics.version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>io.dropwizard.metrics</groupId>
-      <artifactId>metrics-servlets</artifactId>
-      <version>${metrics.version}</version>
     </dependency>
 
     <dependency>
@@ -115,8 +100,7 @@
 
     <dependency>
       <groupId>org.glassfish.jersey.ext</groupId>
-      <artifactId>jersey-spring3</artifactId>
-      <version>${jersey.version}</version>
+      <artifactId>jersey-spring5</artifactId>
     </dependency>
     <dependency>
       <groupId>junit</groupId>
@@ -135,14 +119,16 @@
       <artifactId>c3p0</artifactId>
     </dependency>
     <dependency>
-      <groupId>mysql</groupId>
-      <artifactId>mysql-connector-java</artifactId>
-      <version>${mysql.version}</version>
+      <groupId>org.mariadb.jdbc</groupId>
+      <artifactId>mariadb-java-client</artifactId>
     </dependency>
     <dependency>
-	  <groupId>org.postgresql</groupId>
-	  <artifactId>postgresql</artifactId>
-    <version>${postgresql.version}</version>
+      <groupId>mysql</groupId>
+      <artifactId>mysql-connector-java</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.postgresql</groupId>
+      <artifactId>postgresql</artifactId>
     </dependency>
 
     <dependency>
@@ -150,28 +136,9 @@
       <artifactId>spring-web</artifactId>
     </dependency>
 
-    <!-- AWS S3 client dependencies -->
     <dependency>
-      <groupId>com.amazonaws</groupId>
-      <artifactId>aws-java-sdk-s3</artifactId>
-      <version>${aws.client.version}</version>
-      <scope>runtime</scope>
-      <exclusions>
-        <exclusion>
-          <groupId>com.amazonaws</groupId>
-          <artifactId>aws-java-sdk-core</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>commons-logging</groupId>
-          <artifactId>commons-logging</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-    <dependency>
-      <groupId>com.amazonaws</groupId>
-      <artifactId>aws-java-sdk-core</artifactId>
-      <version>${aws.client.version}</version>
-      <scope>runtime</scope>
+      <groupId>com.h2database</groupId>
+      <artifactId>h2</artifactId>
     </dependency>
 
     <!-- test gear -->
@@ -201,6 +168,10 @@
         <exclusion>
           <groupId>org.eclipse.jetty</groupId>
           <artifactId>jetty-util</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.eclipse.jetty</groupId>
+          <artifactId>jetty-xml</artifactId>
         </exclusion>
         <exclusion>
           <groupId>xml-apis</groupId>
@@ -260,26 +231,11 @@
       <scope>provided</scope>
     </dependency>
 
-    <dependency>
-      <groupId>javax.jcr</groupId>
-      <artifactId>jcr</artifactId>
-      <scope>compile</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>org.modeshape</groupId>
-      <artifactId>modeshape-jcr</artifactId>
-      <scope>runtime</scope>
-    </dependency>
-    
   </dependencies>
   <build>
     <resources>
       <resource>
         <directory>src/main/resources</directory>
-      </resource>
-      <resource>
-        <directory>${project.build.directory}/maven-shared-archive-resources</directory>
       </resource>
     </resources>
     <testResources>
@@ -290,26 +246,14 @@
     </testResources>
     <plugins>
       <plugin>
-        <artifactId>maven-remote-resources-plugin</artifactId>
-        <executions>
-          <execution>
-            <id>process-remote-resources</id>
-            <phase>generate-resources</phase>
-            <goals>
-              <goal>process</goal>
-            </goals>
-          </execution>
-        </executions>
-        <configuration>
-          <resourceBundles>
-            <resourceBundle>org.fcrepo:fcrepo-configs:${project.version}</resourceBundle>
-          </resourceBundles>
-        </configuration>
-      </plugin>
-      <plugin>
         <artifactId>maven-war-plugin</artifactId>
         <configuration>
           <attachClasses>true</attachClasses>
+          <nonFilteredFileExtensions>
+            <nonFilteredFileExtension>ico</nonFilteredFileExtension>
+            <nonFilteredFileExtension>ttf</nonFilteredFileExtension>
+            <nonFilteredFileExtension>woff</nonFilteredFileExtension>
+          </nonFilteredFileExtensions>
           <webResources>
             <resource>
               <directory>src/main/webapp</directory>
@@ -354,7 +298,7 @@
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>properties-maven-plugin</artifactId>
-        <version>1.0-alpha-2</version>
+        <version>1.0.0</version>
         <executions>
           <execution>
             <phase>pre-integration-test</phase>
@@ -372,6 +316,11 @@
                   <name>fcrepo.dynamic.stomp.port</name>
                   <value>${fcrepo.dynamic.stomp.port}</value>
                 </property>
+
+                <systemProperty>
+                  <name>fcrepo.home</name>
+                  <value>${project.build.directory}/fcrepo-home</value>
+                </systemProperty>
 
                 <property>
                   <name>integration-test</name>
@@ -395,8 +344,8 @@
           <jettyXml>${project.build.directory}/test-classes/jetty-test.xml</jettyXml>
           <systemProperties>
             <systemProperty>
-              <name>fcrepo.modeshape.configuration</name>
-              <value>classpath:/config/servlet-auth/repository.json</value>
+              <name>fcrepo.home</name>
+              <value>${project.build.directory}/fcrepo-home</value>
             </systemProperty>
           </systemProperties>
 
@@ -406,18 +355,12 @@
             <id>start-jetty</id>
             <phase>pre-integration-test</phase>
             <goals>
-              <goal>stop</goal>
               <goal>start</goal>
             </goals>
             <configuration>
               <stopPort>${jetty.dynamic.stop.port}</stopPort>
 
               <systemProperties>
-                <systemProperty>
-                  <name>fcrepo.modeshape.configuration</name>
-                  <value>classpath:/config/file-simple/repository.json</value>
-                </systemProperty>
-
                 <systemProperty>
                   <name>fcrepo.dynamic.test.port</name>
                   <value>${fcrepo.dynamic.test.port}</value>
@@ -439,15 +382,8 @@
                 </systemProperty>
 
                 <systemProperty>
-                  <name>
-                    com.arjuna.ats.arjuna.common.ObjectStoreEnvironmentBean.default.objectStoreDir
-                  </name>
-                  <value>${project.build.directory}/object-store-default</value>
-                </systemProperty>
-
-                <systemProperty>
-                  <name>com.arjuna.ats.arjuna.objectstore.objectStoreDir</name>
-                  <value>${project.build.directory}/object-store</value>
+                  <name>fcrepo.home</name>
+                  <value>${project.build.directory}/fcrepo-home</value>
                 </systemProperty>
 
                 <systemProperty>
@@ -500,7 +436,6 @@
         <activeByDefault>false</activeByDefault>
       </activation>
       <properties>
-        <fcrepo.modeshape.configuration>classpath:/config/file-simple/repository.json</fcrepo.modeshape.configuration>
       </properties>
 
       <build>
@@ -524,6 +459,13 @@
                   <directory>src/main/jetty-console</directory>
                   <filtering>true</filtering>
                 </resource>
+                <resource>
+                  <directory>src/main/webapp</directory>
+                  <includes>
+                    <include>*.html</include>
+                  </includes>
+                  <filtering>true</filtering>
+                </resource>
               </webResources>
                 <archive>
                   <index>true</index>
@@ -536,9 +478,9 @@
           </plugin>
 
           <plugin>
-            <groupId>org.simplericity.jettyconsole</groupId>
+            <groupId>org.fcrepo</groupId>
             <artifactId>jetty-console-maven-plugin</artifactId>
-            <version>1.56</version>
+            <version>${jetty-console.version}</version>
             <executions>
               <execution>
                 <goals>
@@ -553,7 +495,6 @@
               </execution>
             </executions>
           </plugin>
-          <!--Ensure that the main war is removed... because it will have a default ModeShape config wired in.-->
           <plugin>
             <artifactId>maven-clean-plugin</artifactId>
             <executions>

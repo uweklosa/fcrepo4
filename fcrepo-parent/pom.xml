@@ -4,8 +4,8 @@
 
   <groupId>org.fcrepo</groupId>
   <artifactId>fcrepo-parent</artifactId>
-  <version>5.0.0-SNAPSHOT</version>
-  <name>Fedora Commons 4 :: Parent POM</name>
+  <version>6.0.0-SNAPSHOT</version>
+  <name>Fedora Commons :: Parent POM</name>
   <description>Parent POM for Fedora Commons Projects</description>
   <url>http://fedorarepository.org</url>
   <packaging>pom</packaging>
@@ -21,9 +21,10 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     <project.copyrightYear>2015</project.copyrightYear>
+    <project.java.source>11</project.java.source>
     <!-- scm, site distribution names -->
     <project_name>${project.artifactId}</project_name>
-    <project_organization>fcrepo4</project_organization>
+    <project_organization>fcrepo</project_organization>
     <!-- OSGi -->
     <osgi.import.packages />
     <osgi.private.packages />
@@ -31,34 +32,36 @@
     <!-- https://github.com/github/maven-plugins/blob/master/README.md -->
     <github.global.server>github</github.global.server>
     <!-- plugin versions -->
-    <build-helper.plugin.version>1.9.1</build-helper.plugin.version>
-    <bundle.plugin.version>2.5.3</bundle.plugin.version>
+    <build-helper.plugin.version>3.0.0</build-helper.plugin.version>
+    <bundle.plugin.version>4.0.0</bundle.plugin.version>
     <changelog.plugin.version>2.3</changelog.plugin.version>
-    <checkstyle.plugin.version>2.15</checkstyle.plugin.version>
-    <clean.plugin.version>2.6.1</clean.plugin.version>
-    <compiler.plugin.version>3.2</compiler.plugin.version>
-    <dependency.plugin.version>2.10</dependency.plugin.version>
+    <checkstyle.plugin.version>3.1.1</checkstyle.plugin.version>
+    <duraspace-codestyle.version>1.1.0</duraspace-codestyle.version>
+    <clean.plugin.version>3.1.0</clean.plugin.version>
+    <compiler.plugin.version>3.8.0</compiler.plugin.version>
+    <dependency.plugin.version>3.1.1</dependency.plugin.version>
     <deploy.plugin.version>2.8.2</deploy.plugin.version>
-    <doxia-markdown.plugin.version>1.6</doxia-markdown.plugin.version>
-    <failsafe.plugin.version>2.18.1</failsafe.plugin.version>
-    <fcrepo-build-tools.version>4.4.2</fcrepo-build-tools.version>
+    <doxia-markdown.plugin.version>1.8</doxia-markdown.plugin.version>
+    <failsafe.plugin.version>3.0.0-M4</failsafe.plugin.version>
+    <fcrepo-build-tools.version>6.0.0-SNAPSHOT</fcrepo-build-tools.version>
     <github-site.plugin.version>0.12</github-site.plugin.version>
     <gpg.plugin.version>1.6</gpg.plugin.version>
     <install.plugin.version>2.5.2</install.plugin.version>
-    <jacoco.plugin.version>0.7.5.201505241946</jacoco.plugin.version>
-    <jar.plugin.version>2.6</jar.plugin.version>
-    <javadoc.plugin.version>2.10.3</javadoc.plugin.version>
-    <jxr.plugin.version>2.5</jxr.plugin.version>
-    <license.plugin.version>2.11</license.plugin.version>
-    <project-info-reports.plugin.version>2.8</project-info-reports.plugin.version>
+    <jacoco.plugin.version>0.8.2</jacoco.plugin.version>
+    <jar.plugin.version>3.1.0</jar.plugin.version>
+    <javadoc.plugin.version>3.2.0</javadoc.plugin.version>
+    <jxr.plugin.version>3.0.0</jxr.plugin.version>
+    <license.plugin.version>3.0</license.plugin.version>
+    <nexus-staging.plugin.version>1.6.8</nexus-staging.plugin.version>
+    <project-info-reports.plugin.version>3.0.0</project-info-reports.plugin.version>
     <release.plugin.version>2.5.2</release.plugin.version>
     <remote-resources.plugin.version>1.5</remote-resources.plugin.version>
-    <resources.plugin.version>2.7</resources.plugin.version>
+    <resources.plugin.version>3.1.0</resources.plugin.version>
     <scm-provider-gitexe.plugin.version>1.9.4</scm-provider-gitexe.plugin.version>
-    <site.plugin.version>3.4</site.plugin.version>
-    <source.plugin.version>2.4</source.plugin.version>
-    <surefire.plugin.version>2.18.1</surefire.plugin.version>
-    <versions.plugin.version>2.1</versions.plugin.version>
+    <site.plugin.version>3.7.1</site.plugin.version>
+    <source.plugin.version>3.0.1</source.plugin.version>
+    <surefire.plugin.version>2.22.1</surefire.plugin.version>
+    <versions.plugin.version>2.7</versions.plugin.version>
     <!-- jacoco and sonar configuration -->
     <jacoco.outputDir>${project.build.directory}</jacoco.outputDir>
     <jacoco.out.unit.file>jacoco-ut.exec</jacoco.out.unit.file>
@@ -107,6 +110,8 @@
           <configuration>
             <linksource>true</linksource>
             <quiet>true</quiet>
+            <source>${project.java.source}</source>
+            <detectOfflineLinks>false</detectOfflineLinks>
           </configuration>
           <executions>
             <execution>
@@ -229,6 +234,12 @@
               <artifactId>fcrepo-build-tools</artifactId>
               <version>${fcrepo-build-tools.version}</version>
             </dependency>
+            <!-- Override dependencies to use latest version of checkstyle -->
+            <dependency>
+              <groupId>com.puppycrawl.tools</groupId>
+              <artifactId>checkstyle</artifactId>
+              <version>8.34</version>
+            </dependency>
           </dependencies>
           <configuration>
             <includeTestSourceDirectory>true</includeTestSourceDirectory>
@@ -261,8 +272,7 @@
           <version>${compiler.plugin.version}</version>
           <configuration>
             <debug>true</debug>
-            <source>1.8</source>
-            <target>1.8</target>
+            <release>${project.java.source}</release>
             <compilerArgument>-Xlint:unchecked,deprecation</compilerArgument>
           </configuration>
         </plugin>
@@ -327,6 +337,11 @@
               <artifactId>doxia-module-markdown</artifactId>
               <version>${doxia-markdown.plugin.version}</version>
             </dependency>
+            <dependency> 
+              <groupId>org.apache.velocity</groupId>
+              <artifactId>velocity</artifactId>
+              <version>1.5</version>
+            </dependency>
           </dependencies>
         </plugin>
 
@@ -352,7 +367,7 @@
             <execution>
               <id>attach-sources</id>
               <goals>
-                <goal>jar</goal>
+                <goal>jar-no-fork</goal>
               </goals>
             </execution>
           </executions>
@@ -362,6 +377,17 @@
           <groupId>org.jacoco</groupId>
           <artifactId>jacoco-maven-plugin</artifactId>
           <version>${jacoco.plugin.version}</version>
+        </plugin>
+        <plugin>
+          <groupId>org.sonatype.plugins</groupId>
+          <artifactId>nexus-staging-maven-plugin</artifactId>
+          <version>${nexus-staging.plugin.version}</version>
+          <extensions>true</extensions>
+          <configuration>
+            <serverId>sonatype-nexus-snapshots</serverId>
+            <nexusUrl>https://oss.sonatype.org/</nexusUrl>
+            <autoReleaseAfterClose>true</autoReleaseAfterClose>
+          </configuration>
         </plugin>
       </plugins>
     </pluginManagement>
@@ -459,10 +485,6 @@
     </pluginRepository>
   </pluginRepositories>
 
-  <prerequisites>
-    <maven>3.0.0</maven>
-  </prerequisites>
-
   <profiles>
     <profile>
       <id>release-sign-artifacts</id>
@@ -493,6 +515,13 @@
               </executions>
               <configuration>
                 <useAgent>true</useAgent>
+                <!-- https://github.com/actions/setup-java/issues/91 -->
+                <gpgArguments>
+                  <arg>--pinentry-mode</arg>
+                  <arg>loopback</arg>
+                </gpgArguments>
+                <!-- This is needed for github actions -->
+                <passphraseServerId>gpg.passphrase</passphraseServerId>
               </configuration>
             </plugin>
           </plugins>
@@ -621,17 +650,6 @@
       <timezone>-5</timezone>
     </developer>
     <developer>
-      <id>acoburn</id>
-      <name>Aaron Coburn</name>
-      <email>acoburn @ (domain of organization url)</email>
-      <organization>Amherst College</organization>
-      <organizationUrl>https://www.amherst.edu/</organizationUrl>
-      <roles>
-        <role>developer</role>
-      </roles>
-      <timezone>-5</timezone>
-    </developer>
-    <developer>
       <id>escowles</id>
       <name>Esmé Cowles</name>
       <email>escowles @ ticklefish dot org</email>
@@ -684,4 +702,16 @@
     <tag>HEAD</tag>
   </scm>
 
+  <repositories>
+    <repository>
+      <id>oss.sonatype.org-snapshot</id>
+      <url>http://oss.sonatype.org/content/repositories/snapshots</url>
+      <releases>
+        <enabled>false</enabled>
+      </releases>
+      <snapshots>
+        <enabled>true</enabled>
+      </snapshots>
+    </repository>
+  </repositories>
 </project>

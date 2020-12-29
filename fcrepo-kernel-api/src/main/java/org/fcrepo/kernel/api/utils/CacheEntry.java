@@ -41,6 +41,7 @@ public interface CacheEntry {
      * Check the fixity of a {@link CacheEntry} with list of digest algorithms
      * @param algorithms the given algorithms
      * @return a {@link FixityResult} containing the relevant data
+     * @throws UnsupportedAlgorithmException in case the fixity check tries to use an unsupported algorithm
      */
     Collection<URI> checkFixity(final Collection<String> algorithms) throws UnsupportedAlgorithmException;
 
@@ -48,12 +49,12 @@ public interface CacheEntry {
      * Get a raw input stream from the underlying store
      * @return the content for this entry
      */
-    abstract InputStream getInputStream();
+    InputStream getInputStream();
 
     /**
      * Generate a human-readable identifier for the location of this entry
      *
      * @return human-readable identifier for the location of this entry
      */
-    abstract String getExternalIdentifier();
+    String getExternalIdentifier();
 }

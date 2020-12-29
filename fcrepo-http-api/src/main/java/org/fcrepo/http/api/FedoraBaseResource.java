@@ -17,30 +17,24 @@
  */
 package org.fcrepo.http.api;
 
-import com.google.common.annotations.VisibleForTesting;
-import org.apache.jena.graph.Node;
-import org.apache.jena.rdf.model.Resource;
-import org.apache.commons.lang3.StringUtils;
 import org.fcrepo.http.commons.AbstractResource;
-import org.fcrepo.http.commons.api.rdf.HttpResourceConverter;
-import org.fcrepo.http.commons.session.HttpSession;
-import org.fcrepo.kernel.api.exception.SessionMissingException;
-import org.fcrepo.kernel.api.exception.TombstoneException;
-import org.fcrepo.kernel.api.identifiers.IdentifierConverter;
+import org.fcrepo.http.commons.api.rdf.HttpIdentifierConverter;
+import org.fcrepo.http.commons.session.TransactionProvider;
+import org.fcrepo.kernel.api.Transaction;
+import org.fcrepo.kernel.api.TransactionManager;
+import org.fcrepo.kernel.api.exception.PathNotFoundException;
+import org.fcrepo.kernel.api.identifiers.FedoraId;
 import org.fcrepo.kernel.api.models.FedoraResource;
-import org.fcrepo.kernel.api.models.Tombstone;
+import org.fcrepo.kernel.api.models.ResourceFactory;
+import org.fcrepo.kernel.api.models.ResourceHelper;
 import org.slf4j.Logger;
 
-import java.net.URI;
-import java.security.Principal;
 import javax.inject.Inject;
+import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.core.Context;
-import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.SecurityContext;
-import javax.ws.rs.core.UriInfo;
+import java.security.Principal;
 
-import static org.fcrepo.kernel.api.observer.OptionalValues.BASE_URL;
-import static org.fcrepo.kernel.api.observer.OptionalValues.USER_AGENT;
 import static org.slf4j.LoggerFactory.getLogger;
 
 /**
@@ -51,101 +45,80 @@ abstract public class FedoraBaseResource extends AbstractResource {
 
     private static final Logger LOGGER = getLogger(FedoraBaseResource.class);
 
-    static final String JMS_BASEURL_PROP = "fcrepo.jms.baseUrl";
-
-    @Inject
-    protected HttpSession session;
-
     @Context
     protected SecurityContext securityContext;
 
-    protected IdentifierConverter<Resource, FedoraResource> idTranslator;
+    @Inject
+    protected ResourceFactory resourceFactory;
 
-    protected IdentifierConverter<Resource, FedoraResource> translator() {
-        if (idTranslator == null) {
-            idTranslator = new HttpResourceConverter(session(),
+    @Inject
+    protected ResourceHelper resourceHelper;
+
+    @Context protected HttpServletRequest servletRequest;
+
+    @Inject
+    protected TransactionManager txManager;
+
+    private TransactionProvider txProvider;
+
+    private Transaction transaction;
+
+    protected HttpIdentifierConverter identifierConverter;
+
+    protected HttpIdentifierConverter identifierConverter() {
+        if (identifierConverter == null) {
+            identifierConverter = new HttpIdentifierConverter(
                     uriInfo.getBaseUriBuilder().clone().path(FedoraLdp.class));
         }
 
-        return idTranslator;
+        return identifierConverter;
     }
 
     /**
-     * This is a helper method for using the idTranslator to convert this resource into an associated Jena Node.
+     * Gets a fedora resource by id. Uses the provided transaction if it is uncommitted,
+     * or uses a new transaction.
      *
-     * @param resource to be converted into a Jena Node
-     * @return the Jena node
+     * @param transaction the fedora transaction
+     * @param fedoraId    identifier of the resource
+     * @return the requested FedoraResource
      */
-    protected Node asNode(final FedoraResource resource) {
-        return translator().reverse().convert(resource).asNode();
+    protected FedoraResource getFedoraResource(final Transaction transaction, final FedoraId fedoraId)
+            throws PathNotFoundException {
+        return resourceFactory.getResource(transaction, fedoraId);
     }
 
     /**
-     * Get the FedoraResource for the resource at the external path
-     * @param externalPath the external path
-     * @return the fedora resource at the external path
+     * @param transaction the transaction in which to check
+     * @param fedoraId identifier of the object to check
+     * @param includeDeleted Whether to check for deleted resources too.
+     * @return Returns true if an object with the provided id exists
      */
-    @VisibleForTesting
-    public FedoraResource getResourceFromPath(final String externalPath) {
-        final Resource resource = translator().toDomain(externalPath);
-        final FedoraResource fedoraResource = translator().convert(resource);
-
-        if (fedoraResource instanceof Tombstone) {
-            throw new TombstoneException(fedoraResource, resource.getURI() + "/fcr:tombstone");
-        }
-
-        return fedoraResource;
+    protected boolean doesResourceExist(final Transaction transaction, final FedoraId fedoraId,
+                                        final boolean includeDeleted) {
+        return resourceHelper.doesResourceExist(transaction, fedoraId, includeDeleted);
     }
 
     /**
-     * Set the baseURL for JMS events.
-     * @param uriInfo the uri info
-     * @param headers HTTP headers
-     **/
-    protected void setUpJMSInfo(final UriInfo uriInfo, final HttpHeaders headers) {
-        try {
-            String baseURL = getBaseUrlProperty(uriInfo);
-            if (baseURL.length() == 0) {
-                baseURL = uriInfo.getBaseUri().toString();
-            }
-            LOGGER.debug("setting baseURL = " + baseURL);
-            session.getFedoraSession().addSessionData(BASE_URL, baseURL);
-            if (!StringUtils.isBlank(headers.getHeaderString("user-agent"))) {
-                session.getFedoraSession().addSessionData(USER_AGENT, headers.getHeaderString("user-agent"));
-            }
-        } catch (final Exception ex) {
-            LOGGER.warn("Error setting baseURL", ex.getMessage());
-        }
-    }
-
-    /**
-     * Produce a baseURL for JMS events using the system property fcrepo.jms.baseUrl of the form http[s]://host[:port],
-     * if it exists.
      *
-     * @param uriInfo used to build the base url
-     * @return String the base Url
+     * @param transaction the transaction in which to check
+     * @param fedoraId identifier of the object to check
+     * @return Returns true if object does not exist but whose ID starts other resources that do exist.
      */
-    private String getBaseUrlProperty(final UriInfo uriInfo) {
-        final String propBaseURL = System.getProperty(JMS_BASEURL_PROP, "");
-        if (propBaseURL.length() > 0 && propBaseURL.startsWith("http")) {
-            final URI propBaseUri = URI.create(propBaseURL);
-            if (propBaseUri.getPort() < 0) {
-                return uriInfo.getBaseUriBuilder().port(-1).uri(propBaseUri).toString();
-            }
-            return uriInfo.getBaseUriBuilder().uri(propBaseUri).toString();
-        }
-        return "";
-    }
-
-    protected HttpSession session() {
-        if (session == null) {
-            throw new SessionMissingException("Invalid session");
-        }
-        return session;
+    protected boolean isGhostNode(final Transaction transaction, final FedoraId fedoraId) {
+        return resourceHelper.isGhostNode(transaction, fedoraId);
     }
 
     protected String getUserPrincipal() {
         final Principal p = securityContext.getUserPrincipal();
         return p == null ? null : p.getName();
     }
+
+    protected Transaction transaction() {
+        if (transaction == null) {
+            txProvider = new TransactionProvider(txManager, servletRequest, uriInfo.getBaseUri());
+            transaction = txProvider.provide();
+        }
+        return transaction;
+    }
+
 }

@@ -19,11 +19,9 @@ package org.fcrepo.auth.common;
 
 import static java.util.Collections.emptySet;
 
-import org.modeshape.jcr.api.ServletCredentials;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.jcr.Credentials;
 import javax.servlet.http.HttpServletRequest;
 
 import java.security.Principal;
@@ -37,13 +35,13 @@ import java.util.Set;
  * @author Mike Daines
  * @see PrincipalProvider
  */
-public class HttpHeaderPrincipalProvider implements PrincipalProvider {
+public class HttpHeaderPrincipalProvider extends AbstractPrincipalProvider {
 
-    protected static class HttpHeaderPrincipal implements Principal {
+    public static class HttpHeaderPrincipal implements Principal {
 
         private final String name;
 
-        HttpHeaderPrincipal(final String name) {
+        protected HttpHeaderPrincipal(final String name) {
             this.name = name;
         }
 
@@ -97,12 +95,12 @@ public class HttpHeaderPrincipalProvider implements PrincipalProvider {
     }
 
     /*
-     * (non-Javadoc)
-     * @see
-     * org.fcrepo.auth.PrincipalProvider#getPrincipals(javax.jcr.Credentials)
-     */
+    * (non-Javadoc)
+    * @see
+    * org.fcrepo.auth.PrincipalProvider#getPrincipals(javax.servlet.http.HttpServletRequest)
+    */
     @Override
-    public Set<Principal> getPrincipals(final Credentials credentials) {
+    public Set<Principal> getPrincipals(final HttpServletRequest request) {
         LOGGER.debug("Checking for principals using {}", HttpHeaderPrincipalProvider.class.getSimpleName());
 
         if (headerName == null || separator == null) {
@@ -111,16 +109,6 @@ public class HttpHeaderPrincipalProvider implements PrincipalProvider {
         }
 
         LOGGER.debug("Trying to get principals from header: {}; separator: {}", headerName, separator);
-
-        if (!(credentials instanceof ServletCredentials)) {
-            LOGGER.debug("Credentials is not an instanceof ServletCredentials");
-            return emptySet();
-        }
-
-        final ServletCredentials servletCredentials =
-                (ServletCredentials) credentials;
-
-        final HttpServletRequest request = servletCredentials.getRequest();
 
         if (request == null) {
             LOGGER.debug("Servlet request from servletCredentials was null");
@@ -140,11 +128,15 @@ public class HttpHeaderPrincipalProvider implements PrincipalProvider {
 
         for (final String name : names) {
             LOGGER.debug("Adding HTTP header-provided principal: {}", name.trim());
-            principals.add(new HttpHeaderPrincipal(name.trim()));
+            principals.add(createPrincipal(name));
         }
 
         return principals;
 
+    }
+
+    protected Principal createPrincipal(final String name) {
+        return new HttpHeaderPrincipal(name.trim());
     }
 
 }
